@@ -1,0 +1,172 @@
+=====================================
+ ReadyQ 백엔드 테스트 방법
+=====================================
+
+서버 주소: http://localhost:8080
+
+테스트 도구로 Postman 또는 Thunder Client(VS Code 확장) 사용 권장.
+아래 순서대로 진행하면 전체 흐름을 확인할 수 있음.
+
+=====================================
+ STEP 1. 서버 실행 확인
+=====================================
+
+서버 실행 후 아래 주소로 GET 요청.
+404가 뜨면 서버 정상 동작 중인 것.
+
+GET http://localhost:8080
+
+=====================================
+ STEP 2. 회원가입 (SMS 인증 포함)
+=====================================
+
+[ 2-1. 인증코드 발송 ]
+
+POST http://localhost:8080/api/auth/sms/send
+Content-Type: application/json
+
+{
+  "phone": "010-1234-5678"
+}
+
+→ 성공 응답:
+{
+  "message": "인증코드가 발송되었습니다"
+}
+
+→ 현재 mock 모드이므로 실제 문자는 오지 않음.
+   서버 콘솔 로그에서 인증코드 확인:
+   예) [SMS 인증] 수신번호: 010-1234-5678 | 인증코드: 839271 (5분 유효)
+
+-------------------------------------
+
+[ 2-2. 인증코드 확인 ]
+
+POST http://localhost:8080/api/auth/sms/verify
+Content-Type: application/json
+
+{
+  "phone": "010-1234-5678",
+  "code": "839271"
+}
+
+→ 성공 응답:
+{
+  "verified": true,
+  "message": "인증이 완료되었습니다"
+}
+
+→ 실패 응답 (코드 틀리거나 5분 초과):
+{
+  "verified": false,
+  "message": "인증코드가 올바르지 않거나 만료되었습니다"
+}
+
+-------------------------------------
+
+[ 2-3. 회원가입 ]
+
+POST http://localhost:8080/api/auth/signup
+Content-Type: application/json
+
+{
+  "nickname": "테스트유저",
+  "email": "test@test.com",
+  "username": "testuser",
+  "password": "test1234!",
+  "phone": "010-1234-5678"
+}
+
+→ 성공 응답:
+{
+  "message": "회원가입이 완료되었습니다"
+}
+
+→ 아이디 중복 시:
+{
+  "message": "이미 사용 중인 아이디입니다"
+}
+
+=====================================
+ STEP 3. 로그인
+=====================================
+
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "test1234!"
+}
+
+→ 성공 응답:
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9.xxx.xxx",
+  "username": "testuser",
+  "nickname": "테스트유저",
+  "role": "USER"
+}
+
+→ 아이디/비밀번호 오류 시:
+{
+  "message": "아이디 또는 비밀번호가 올바르지 않습니다"
+}
+
+※ 발급받은 token 값을 복사해두기. 인증이 필요한 API 사용 시 필요.
+
+=====================================
+ STEP 4. 아이디 찾기
+=====================================
+
+[ 이메일로 찾기 ]
+GET http://localhost:8080/api/auth/find-username?email=test@test.com
+
+[ 전화번호로 찾기 ]
+GET http://localhost:8080/api/auth/find-username?phone=010-1234-5678
+
+→ 성공 응답:
+{
+  "username": "testuser"
+}
+
+=====================================
+ STEP 5. 비밀번호 재설정
+=====================================
+
+POST http://localhost:8080/api/auth/find-password
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "phone": "010-1234-5678",
+  "newPassword": "newpass1234!"
+}
+
+→ 성공 응답:
+{
+  "message": "비밀번호가 변경되었습니다"
+}
+
+=====================================
+ STEP 6. 인증이 필요한 API 테스트
+=====================================
+
+로그인에서 받은 token을 헤더에 포함해 요청.
+
+예시 (추후 마이페이지 등 구현 시):
+GET http://localhost:8080/api/user/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.xxx.xxx
+
+토큰 없이 요청 시 → 403 Forbidden 응답.
+
+=====================================
+ 자주 발생하는 오류
+=====================================
+
+400 Bad Request  → 입력값 형식 오류 (이메일 형식, 전화번호 형식 등)
+403 Forbidden    → JWT 토큰 없거나 만료됨
+500 Server Error → 서버 콘솔 로그 확인
+
+전화번호 형식: 반드시 010-0000-0000 형태로 입력 (하이픈 포함)
+비밀번호: 8자 이상
+아이디: 4~20자
