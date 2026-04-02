@@ -16,5 +16,13 @@ sms:
   #   from: 발신번호
   mock: true  # true = 실제 발송 없이 콘솔 출력 (개발용)
 
+email:
+  # 이메일 발송 설정 (Spring Mail 연동 시 아래 주석 해제)
+  # spring.mail.host: smtp.gmail.com
+  # spring.mail.port: 587
+  # spring.mail.username: your-email@gmail.com
+  # spring.mail.password: your-app-password
+  mock: true  # true = 실제 발송 없이 콘솔 출력 (개발용)
+
 server:
   port: 8080
