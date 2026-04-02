@@ -15,6 +15,9 @@
 [ 폴더 구조 ]
 -------------------------------------
 
+config/
+  CorsConfig.java           - CORS 전역 설정 (/api/** 허용)
+
 controller/
   AuthController.java       - API 엔드포인트 정의
 
@@ -22,8 +25,12 @@ dto/
   LoginRequest.java         - 로그인 요청 (username, password)
   LoginResponse.java        - 로그인 응답 (token, username, nickname, role)
   SignUpRequest.java        - 회원가입 요청 (nickname, email, username, password, phone)
-  SmsRequest.java           - 인증코드 발송 요청 (phone)
-  SmsVerifyRequest.java     - 인증코드 확인 요청 (phone, code)
+  SmsRequest.java           - SMS 인증코드 발송 요청 (phone)
+  SmsVerifyRequest.java     - SMS 인증코드 확인 요청 (phone, code)
+  EmailRequest.java         - 이메일 인증코드 발송 요청 (email)
+  FindUsernameRequest.java  - 아이디 찾기 요청 (email, code)
+  FindPasswordVerifyRequest.java - 비밀번호 찾기 본인확인 요청 (username, email, code)
+  ResetPasswordRequest.java - 비밀번호 재설정 요청 (resetToken, newPassword)
 
 exception/
   GlobalExceptionHandler.java  - 전역 에러 처리 (validation 오류, 비즈니스 오류 등)
@@ -32,7 +39,7 @@ model/
   User.java                 - MongoDB에 저장되는 유저 데이터 구조
 
 repository/
-  UserRepository.java       - MongoDB 쿼리 (username/email/phone으로 유저 조회 등)
+  UserRepository.java       - MongoDB 쿼리 (username/email/phone으로 유저 조회, 중복 확인)
 
 security/
   JwtUtil.java              - JWT 토큰 생성 및 검증
@@ -41,18 +48,21 @@ security/
 
 service/
   AuthService.java          - 로그인, 회원가입, 아이디/비밀번호 찾기 로직
-  SmsService.java           - 인증코드 생성, 발송, 검증 (5분 유효)
+  SmsService.java           - SMS 인증코드 생성, 발송, 검증 (5분 유효)
+  EmailService.java         - 이메일 인증코드 생성, 발송, 검증 + 비밀번호 재설정 토큰 관리
 
 -------------------------------------
 [ API 목록 ]
 -------------------------------------
 
-POST   /api/auth/login            로그인 → JWT 토큰 반환
-POST   /api/auth/signup           회원가입
-POST   /api/auth/sms/send         전화번호 인증코드 발송
-POST   /api/auth/sms/verify       인증코드 확인
-GET    /api/auth/find-username    아이디 찾기 (?email=... 또는 ?phone=...)
-POST   /api/auth/find-password    비밀번호 재설정
+POST   /api/auth/login                 로그인 → JWT 토큰 반환
+POST   /api/auth/signup                회원가입
+POST   /api/auth/sms/send             SMS 인증코드 발송 (회원가입 전화번호 인증)
+POST   /api/auth/sms/verify           SMS 인증코드 확인
+POST   /api/auth/email/send           이메일 인증코드 발송 (아이디/비번 찾기)
+POST   /api/auth/find-username        아이디 찾기 (이메일 OTP 인증 후 반환)
+POST   /api/auth/find-password/verify 비밀번호 찾기 본인확인 → resetToken 반환
+POST   /api/auth/reset-password       비밀번호 재설정 (resetToken + 새 비밀번호)
 
 -------------------------------------
 [ SMS 인증 방식 ]
@@ -65,6 +75,23 @@ POST   /api/auth/find-password    비밀번호 재설정
   - application.yml에서 sms.mock: false 로 변경
   - SmsService.java 안의 sendViaNcp() 등 실제 SMS API 연동 코드 작성
   - NCP SENS 또는 Twilio 등 사용 가능
+
+-------------------------------------
+[ 이메일 인증 방식 ]
+-------------------------------------
+
+아이디 찾기 / 비밀번호 찾기에서 이메일 OTP를 사용.
+현재는 mock 모드로 실제 이메일 발송 없이 콘솔(로그)에 인증코드 출력.
+인증코드는 6자리 숫자이며 5분 후 자동 만료.
+
+비밀번호 찾기 흐름:
+  1. 이메일 인증코드 발송 + 검증
+  2. 본인확인 성공 시 resetToken 발급 (10분 유효)
+  3. resetToken으로 새 비밀번호 설정
+
+실제 이메일 발송이 필요하면:
+  - application.yml에서 email.mock: false 로 변경
+  - Spring Mail 의존성 추가 후 EmailService.java 내 발송 로직 구현
 
 -------------------------------------
 [ 실행 방법 ]
@@ -99,3 +126,11 @@ DB명: ReadyQ
   Authorization: Bearer {토큰값}
 
 토큰 유효기간: 24시간
+
+-------------------------------------
+[ OTP 유효시간 ]
+-------------------------------------
+
+SMS 인증코드:         5분
+이메일 인증코드:      5분
+비밀번호 재설정 토큰: 10분

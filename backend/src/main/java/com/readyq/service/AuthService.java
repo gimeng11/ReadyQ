@@ -37,6 +37,9 @@ public class AuthService {
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다");
         }
+        if (userRepository.existsByPhone(req.getPhone())) {
+            throw new IllegalArgumentException("이미 사용 중인 전화번호입니다");
+        }
 
         User user = new User();
         user.setUsername(req.getUsername());
@@ -48,28 +51,26 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    public String findUsername(String email, String phone) {
-        if (email != null && !email.isBlank()) {
-            return userRepository.findByEmail(email)
-                    .map(User::getUsername)
-                    .orElseThrow(() -> new IllegalArgumentException("해당 이메일로 가입된 계정이 없습니다"));
-        }
-        if (phone != null && !phone.isBlank()) {
-            return userRepository.findByPhone(phone)
-                    .map(User::getUsername)
-                    .orElseThrow(() -> new IllegalArgumentException("해당 전화번호로 가입된 계정이 없습니다"));
-        }
-        throw new IllegalArgumentException("이메일 또는 전화번호를 입력하세요");
+    // 아이디 찾기: 이메일 OTP 인증 완료 후 호출
+    public String findUsernameByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .map(User::getUsername)
+                .orElseThrow(() -> new IllegalArgumentException("해당 이메일로 가입된 계정이 없습니다"));
     }
 
-    public void resetPassword(String username, String phone, String newPassword) {
+    // 비밀번호 재설정 본인확인: username + email이 일치하는지 검증
+    public void validateUserForPasswordReset(String username, String email) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 아이디입니다"));
-
-        if (!user.getPhone().equals(phone)) {
-            throw new IllegalArgumentException("전화번호가 일치하지 않습니다");
+        if (!user.getEmail().equals(email)) {
+            throw new IllegalArgumentException("아이디와 이메일이 일치하지 않습니다");
         }
+    }
 
+    // 비밀번호 재설정: resetToken 검증 후 새 비밀번호 저장
+    public void resetPasswordByEmail(String email, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("해당 이메일로 가입된 계정이 없습니다"));
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }

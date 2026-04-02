@@ -29,8 +29,10 @@ public class SecurityConfig {
                     "/api/auth/login",
                     "/api/auth/signup",
                     "/api/auth/sms/**",
+                    "/api/auth/email/**",
                     "/api/auth/find-username",
-                    "/api/auth/find-password"
+                    "/api/auth/find-password/**",
+                    "/api/auth/reset-password"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
