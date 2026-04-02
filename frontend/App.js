@@ -8,6 +8,14 @@ import SignUpScreen from './src/screens/SignUpScreen/SignUpScreen'
 import FindIdScreen from './src/screens/FindIdScreen/FindIdScreen'
 import FindPwScreen from './src/screens/FindPwScreen/FindPwScreen'
 import NewPwScreen from './src/screens/FindPwScreen/NewPwScreen'
+import HomeScreen from './src/screens/Home/HomeScreen'
+import InterviewScreen from './src/screens/Interview/InterviewScreen'
+import MockInterviewScreen from './src/screens/MockInterview/MockInterviewScreen'
+import ResumeScreen from './src/screens/Resume/ResumeScreen'
+import ArchiveScreen from './src/screens/Archive/ArchiveScreen'
+import CommunityScreen from './src/screens/Community/CommunityScreen'
+import ProfileScreen from './src/screens/Profile/ProfileScreen'
+import ScheduleScreen from './src/screens/Schedule/ScheduleScreen'
 
 const Stack = createNativeStackNavigator()
 
@@ -31,6 +39,14 @@ export default function App() {
         <Stack.Screen name="FindId" component={FindIdScreen} />
         <Stack.Screen name="FindPw" component={FindPwScreen} />
         <Stack.Screen name="NewPw" component={NewPwScreen} />
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Interview" component={InterviewScreen} />
+        <Stack.Screen name="MockInterview" component={MockInterviewScreen} />
+        <Stack.Screen name="Resume" component={ResumeScreen} />
+        <Stack.Screen name="Archive" component={ArchiveScreen} />
+        <Stack.Screen name="Community" component={CommunityScreen} />
+        <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="Schedule" component={ScheduleScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   )
