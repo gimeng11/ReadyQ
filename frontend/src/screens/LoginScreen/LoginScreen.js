@@ -22,10 +22,10 @@ export default function LoginScreen({navigation}) {
           style={styles.input}
         />
 
-        <CustomButton title="로그인" type="secondary" />
+        <CustomButton title="로그인" type="secondary" onPress={() => navigation.navigate('Home')} />
 
         <View style={styles.linkRow}>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('FindId')}>
             <CustomText style={styles.linkText}>
               아이디 찾기
             </CustomText>
@@ -33,7 +33,7 @@ export default function LoginScreen({navigation}) {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('FindPw')}>
             <CustomText style={styles.linkText}>
               비밀번호 찾기
             </CustomText>
