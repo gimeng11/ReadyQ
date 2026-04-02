@@ -22,7 +22,7 @@ export default function LoginScreen({navigation}) {
           style={styles.input}
         />
 
-        <CustomButton title="로그인" type="secondary" />
+        <CustomButton title="로그인" type="secondary" onPress={() => navigation.navigate('Home')} />
 
         <View style={styles.linkRow}>
           <TouchableOpacity onPress={() => navigation.navigate('FindId')}>
