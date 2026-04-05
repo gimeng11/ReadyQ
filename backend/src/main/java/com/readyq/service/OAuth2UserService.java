@@ -10,6 +10,7 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -21,22 +22,44 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
-        // 1. 구글로부터 유저 정보를 가져옴
         OAuth2User oAuth2User = super.loadUser(userRequest);
 
-        // 2. 구글에서 제공하는 정보 추출
-        String provider = userRequest.getClientRegistration().getRegistrationId(); // "google"
-        String providerId = oAuth2User.getAttribute("sub"); // 구글 유저 고유 ID
-        String email = oAuth2User.getAttribute("email");
-        String name = oAuth2User.getAttribute("name");
+        String provider = userRequest.getClientRegistration().getRegistrationId(); // "google", "naver", "kakao"
 
-        // 3. DB에 해당 이메일이 있는지 확인
-        User user = userRepository.findByEmail(email).orElse(null);
+        String providerId = null;
+        String email = null;
+        String name = null;
 
+        // 구글
+        if (provider.equals("google")) {
+            providerId = oAuth2User.getAttribute("sub");
+            email = oAuth2User.getAttribute("email");
+            name = oAuth2User.getAttribute("name");
+        } else if (provider.equals("naver")) {
+            // 네이버
+            Map<String, Object> response = (Map<String, Object>) oAuth2User.getAttributes().get("response");
+            providerId = (String) response.get("id");
+            email = (String) response.get("email");
+            name = (String) response.get("name");
+        } else if (provider.equals("kakao")) {
+            // 카카오
+            providerId = String.valueOf(oAuth2User.getAttributes().get("id"));
+
+            Map<String, Object> kakaoAccount = (Map<String, Object>) oAuth2User.getAttributes().get("kakao_account");
+            Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
+
+            email = (String) kakaoAccount.get("email");
+            name = (String) profile.get("nickname");
+        }
+
+        // provider + providerId  DB에 해당 플랫폼과 고유 식별자로 가입된 유저가 있는지 확인
+        String username = provider + "_" + providerId;
+        User user = userRepository.findByUsername(username).orElse(null);
+
+        // DB에 없으면 자동 회원가입 처리
         if (user == null) {
-            // 4. DB에 없으면 자동 회원가입 처리
             user = new User();
-            user.setUsername(provider + "_" + providerId); // 중복 방지를 위한 자동 아이디 생성
+            user.setUsername(username); // 자동 아이디 생성
             user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString())); // 임의의 비밀번호
             user.setEmail(email);
             user.setNickname(name);
@@ -45,6 +68,6 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
             userRepository.save(user);
         }
 
-        return oAuth2User; // 스프링 시큐리티 내부적으로 사용됨
+        return oAuth2User;
     }
 }

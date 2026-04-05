@@ -19,19 +19,17 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
-        // 1. 인증된 유저 정보 가져오기
+        // 인증된 유저 정보 가져오기
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
 
-        // CustomOAuth2UserService에서 만든 방식과 동일하게 username 조합
-        String providerId = oAuth2User.getAttribute("sub");
-        String username = "google_" + providerId;
+        String username = (String) authentication.getName();
 
-        // 2. JWT 토큰 생성
+        // JWT 토큰 생성
         String token = jwtUtil.generateToken(username, "USER");
 
-        // 3. 프론트엔드 주소로 리다이렉트 (토큰을 URL 파라미터로 붙여서 전달)
-        // 프론트엔드가 3000포트를 쓴다고 가정한 주소야. 나중에 프론트 주소로 바꿔야 해.
-        String redirectUrl = "http://localhost:3000/oauth2/redirect?token=" + token;
+        // 3. 프론트엔드 주소로 리다이렉트
+        // 로컬 ip 주소 expo go 테스트용 변경 필요
+        String redirectUrl = "exp://192.168.55.77:8081/--/oauth2/redirect?token=" + token;
 
         response.sendRedirect(redirectUrl);
     }
