@@ -100,4 +100,10 @@ public class AuthController {
         authService.resetPasswordByEmail(email, req.getNewPassword());
         return ResponseEntity.ok(Map.of("message", "비밀번호가 변경되었습니다"));
     }
+
+    // 소셜 로그인 테스트용
+    @GetMapping("/test")
+    public ResponseEntity<String> testAuth() {
+        return ResponseEntity.ok("토큰 인증 성공.");
+    }
 }

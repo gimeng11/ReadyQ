@@ -68,6 +68,17 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
             userRepository.save(user);
         }
 
-        return oAuth2User;
+        // 기존 oAuth2User의 속성들을 복사할 수 있는 Map 생성
+        Map<String, Object> customAttributes = new java.util.HashMap<>(oAuth2User.getAttributes());
+
+        // 고유 식별자(username)를 Map에 추가
+        customAttributes.put("custom_username", username);
+
+        // 새 DefaultOAuth2User를 생성해서 반환 (authentication.getName() 호출 시 custom_username 값을 주도록 설정)
+        return new org.springframework.security.oauth2.core.user.DefaultOAuth2User(
+                oAuth2User.getAuthorities(),
+                customAttributes,
+                "custom_username"
+        );
     }
 }
