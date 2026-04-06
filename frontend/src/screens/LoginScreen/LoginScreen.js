@@ -1,4 +1,4 @@
-import { View, TextInput, TouchableOpacity } from 'react-native'
+import { View, TextInput,Image, TouchableOpacity } from 'react-native'
 import { styles } from './LoginStyles'
 import CustomButton from '../../components/CustomButton'
 import CustomText from '../../components/CustomText'
@@ -45,6 +45,36 @@ export default function LoginScreen({navigation}) {
             <CustomText style={styles.linkText}>
               회원가입
             </CustomText>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.dividerContainer}>
+          <View style={styles.line} />
+          <CustomText style={styles.orText}>
+            SNS 계정으로 로그인하기
+          </CustomText>
+          <View style={styles.line} />
+        </View>
+
+        <View style={styles.snsRow}>
+          <TouchableOpacity style={styles.snsButton}>
+            <Image
+              source={require('../../../assets/icons/kakao.png')}
+              style={styles.snsIcon}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.snsButton}>
+            <Image
+              source={require('../../../assets/icons/naver.png')}
+              style={styles.snsIcon}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.snsButton}>
+            <Image
+              source={require('../../../assets/icons/google.png')}
+              style={styles.snsIcon}
+            />
           </TouchableOpacity>
         </View>
       </View>

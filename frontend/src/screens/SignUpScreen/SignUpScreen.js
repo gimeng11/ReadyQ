@@ -51,7 +51,7 @@ export default function SignUpScreen({ navigation }) {
         </CustomText>
         <TextInput placeholder="인증번호 6자리를 입력하세요" style={styles.input} />
 
-        <CustomButton title="회원가입" type="secondary" style={styles.button}/>
+        <CustomButton title="회원가입" type="secondary" style={styles.button} onPress={() => navigation.navigate('SignUpJob')}/>
 
       </View>
       <View style={styles.bottomSection}>
