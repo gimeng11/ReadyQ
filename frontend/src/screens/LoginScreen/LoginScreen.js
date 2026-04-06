@@ -1,15 +1,42 @@
-import { View, TextInput,Image, TouchableOpacity, Alert } from 'react-native'
+import { View, TextInput, Image, TouchableOpacity, Alert } from 'react-native'
 import { useState } from 'react'
+import * as WebBrowser from 'expo-web-browser'
+import * as Linking from 'expo-linking'
 import { styles } from './LoginStyles'
 import CustomButton from '../../components/CustomButton'
 import CustomText from '../../components/CustomText'
 import { login } from '../../api/auth'
 import { saveToken } from '../../utils/storage'
+import { BASE_URL } from '../../api/client'
 
 export default function LoginScreen({ navigation }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const handleSnsLogin = async (provider) => {
+    setLoading(true)
+    try {
+      const appRedirect = Linking.createURL('/oauth2/redirect')
+      const oauthUrl = `${BASE_URL}/oauth2/authorization/${provider}?app_redirect=${encodeURIComponent(appRedirect)}`
+      const result = await WebBrowser.openAuthSessionAsync(oauthUrl, appRedirect)
+
+      if (result.type === 'success') {
+        const parsed = Linking.parse(result.url)
+        const token = parsed.queryParams?.token
+        if (token) {
+          await saveToken(token)
+          navigation.reset({ index: 0, routes: [{ name: 'Home' }] })
+        } else {
+          Alert.alert('로그인 실패', 'SNS 로그인 중 오류가 발생했습니다')
+        }
+      }
+    } catch (e) {
+      Alert.alert('로그인 실패', e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -83,21 +110,21 @@ export default function LoginScreen({ navigation }) {
         </View>
 
         <View style={styles.snsRow}>
-          <TouchableOpacity style={styles.snsButton}>
+          <TouchableOpacity style={styles.snsButton} onPress={() => handleSnsLogin('kakao')}>
             <Image
               source={require('../../../assets/icons/kakao.png')}
               style={styles.snsIcon}
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.snsButton}>
+          <TouchableOpacity style={styles.snsButton} onPress={() => handleSnsLogin('naver')}>
             <Image
               source={require('../../../assets/icons/naver.png')}
               style={styles.snsIcon}
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.snsButton}>
+          <TouchableOpacity style={styles.snsButton} onPress={() => handleSnsLogin('google')}>
             <Image
               source={require('../../../assets/icons/google.png')}
               style={styles.snsIcon}

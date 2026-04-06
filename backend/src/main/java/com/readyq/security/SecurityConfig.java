@@ -37,6 +37,7 @@ public class SecurityConfig {
                     "/api/auth/find-username",
                     "/api/auth/find-password/**",
                     "/api/auth/reset-password",
+                    "/oauth2/authorization/**",
                     "/login/oauth2/code/google",
                     "/login/oauth2/code/naver",
                     "/login/oauth2/code/kakao"

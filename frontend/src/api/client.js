@@ -13,7 +13,7 @@ const getBaseUrl = () => {
   return 'http://10.0.2.2:8080'
 }
 
-const BASE_URL = getBaseUrl()
+export const BASE_URL = getBaseUrl()
 console.log('[API] BASE_URL:', BASE_URL)
 
 export async function apiCall(endpoint, options = {}) {

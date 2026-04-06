@@ -105,15 +105,29 @@ Content-Type: application/json
 }
 -------------------------------------
 
-[ 2-4. 소셜 회원가입 ]
+[ 2-4. 소셜 로그인 (앱 연동) ]
+
+▶ 앱(Expo Go)에서 테스트:
+1. 서버 실행 (포트 8080)
+2. Expo Go로 앱 실행
+3. 로그인 화면에서 카카오 / 네이버 / 구글 버튼 클릭
+4. 인앱 브라우저가 열리며 SNS 로그인 진행
+5. 로그인 완료 시 자동으로 앱으로 복귀 → Home 화면 이동
+
+→ 성공 시 DB에 유저 자동 생성 (provider, providerId 필드 저장됨)
+→ 최초 로그인이면 자동 회원가입 처리
+
+▶ 브라우저에서 단독 테스트 (앱 없이 백엔드만 확인):
 1. 서버 실행
-2. 브라우저에 주소 입력
-http://localhost:8080/oauth2/authorization/kakao
-http://localhost:8080/oauth2/authorization/google
-http://localhost:8080/oauth2/authorization/naver
-3. 회원 가입
-4. localhost:3000/oauth2/redirect?token= 으로 리다이렉트(현재 연결 거부 상태)
-DB에는 정상적으로 저장됨
+2. 브라우저에 주소 입력:
+   http://localhost:8080/oauth2/authorization/kakao
+   http://localhost:8080/oauth2/authorization/google
+   http://localhost:8080/oauth2/authorization/naver
+3. SNS 로그인 진행
+4. app_redirect 쿠키가 없으므로 기본값으로 리다이렉트:
+   http://localhost:3000/oauth2/redirect?token={JWT} (연결 거부 뜨는 것 정상)
+   → URL에서 token 값 확인 가능
+5. DB에 정상적으로 저장됨
 =====================================
  STEP 3. 로그인
 =====================================
