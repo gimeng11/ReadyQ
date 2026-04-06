@@ -29,8 +29,10 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
         // 3. 프론트엔드 주소로 리다이렉트
         // 로컬 ip 주소 expo go 테스트용 변경 필요
-        String redirectUrl = "exp://192.168.55.77:8081/--/oauth2/redirect?token=" + token;
+        //String redirectUrl = "exp://192.168.55.77:8081/--/oauth2/redirect?token=" + token;
 
+        // PC 브라우저 테스트용
+        String redirectUrl = "http://localhost:3000/oauth2/redirect?token=" + token;
         response.sendRedirect(redirectUrl);
     }
 }
