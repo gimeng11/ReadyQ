@@ -88,4 +88,45 @@ companyLink: {
   fontSize: 13,
   color: '#3B82F6',
 },
+
+dividerContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginTop: 30,
+  marginBottom: 20,
+},
+
+line: {
+  flex: 1,
+  height: 1,
+  backgroundColor: '#ddd',
+},
+
+orText: {
+  marginHorizontal: 10,
+  color: '#888',
+  fontSize: 12,
+},
+
+snsRow: {
+  flexDirection: 'row',
+  justifyContent: 'center',
+  gap: 50, // ⭐ 간격
+  marginBottom: 20,
+},
+
+snsButton: {
+  width: 50,         
+  height: 50,
+  borderRadius: 30, 
+  justifyContent: 'center',
+  backgroundColor: '#f5f2f2',
+  alignItems: 'center',
+},
+
+snsIcon: {
+  width: 25, 
+  height: 30,
+  resizeMode: 'contain',
+},
 })

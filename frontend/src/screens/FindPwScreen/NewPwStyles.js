@@ -18,11 +18,29 @@ bottomSection: {
   alignItems: 'center',
 },
 
+centerSection: {
+  flex: 1,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+bottomFixed: {
+  position: 'absolute',
+  bottom: 40,
+  width: '85%',
+  alignSelf: 'center',
+},
   title: {
     fontSize: 24,
     marginBottom: 32,
   },
 
+  successText: {
+  textAlign: 'center',
+  lineHeight: 32,
+  fontSize: 24,
+  marginBottom: 200, 
+},
   input: {
     height: 52,
     borderWidth: 1,
