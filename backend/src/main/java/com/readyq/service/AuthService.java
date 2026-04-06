@@ -47,6 +47,8 @@ public class AuthService {
         user.setNickname(req.getNickname());
         user.setEmail(req.getEmail());
         user.setPhone(req.getPhone());
+        user.setJobTitle(req.getJobTitle());
+        user.setCareer(req.getCareer());
         user.setProvider("local");
 
         userRepository.save(user);

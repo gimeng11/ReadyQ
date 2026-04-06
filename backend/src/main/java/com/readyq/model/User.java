@@ -28,6 +28,9 @@ public class User {
 
     private String role = "USER";   // USER | COMPANY
 
+    private String jobTitle;     // 직무 (예: 백엔드 개발자, 디자이너 등)
+    private String career;       // 경력 (예: 신입, 1년, 3년 등)
+
     private String provider;    // 가입 경로 local, google, kakao, naver
     private String providerId;  // sns 유저의 고유 식별 번호
 
