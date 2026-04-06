@@ -5,6 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import StartScreen from './src/screens/StartScreen/StartScreen'
 import LoginScreen from './src/screens/LoginScreen/LoginScreen'
 import SignUpScreen from './src/screens/SignUpScreen/SignUpScreen'
+import SignUpJobScreen from './src/screens/SignUpScreen/SignUpJobScreen'
+import SignUpCareerScreen from './src/screens/SignUpScreen/SignUpCareerScreen'
 import FindIdScreen from './src/screens/FindIdScreen/FindIdScreen'
 import FindPwScreen from './src/screens/FindPwScreen/FindPwScreen'
 import NewPwScreen from './src/screens/FindPwScreen/NewPwScreen'
@@ -36,6 +38,8 @@ export default function App() {
         <Stack.Screen name="Start" component={StartScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
+        <Stack.Screen name="SignUpJob" component={SignUpJobScreen} />
+        <Stack.Screen name="SignUpCareer" component={SignUpCareerScreen} />
         <Stack.Screen name="FindId" component={FindIdScreen} />
         <Stack.Screen name="FindPw" component={FindPwScreen} />
         <Stack.Screen name="NewPw" component={NewPwScreen} />
