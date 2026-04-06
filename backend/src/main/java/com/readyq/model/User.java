@@ -28,5 +28,8 @@ public class User {
 
     private String role = "USER";   // USER | COMPANY
 
+    private String provider;    // 가입 경로 local, google, kakao, naver
+    private String providerId;  // sns 유저의 고유 식별 번호
+
     private LocalDateTime createdAt = LocalDateTime.now();
 }
