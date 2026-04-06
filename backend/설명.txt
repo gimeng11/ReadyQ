@@ -24,7 +24,7 @@ controller/
 dto/
   LoginRequest.java         - 로그인 요청 (username, password)
   LoginResponse.java        - 로그인 응답 (token, username, nickname, role)
-  SignUpRequest.java        - 회원가입 요청 (nickname, email, username, password, phone)
+  SignUpRequest.java        - 회원가입 요청 (nickname, email, username, password, phone, jobTitle, career)
   SmsRequest.java           - SMS 인증코드 발송 요청 (phone)
   SmsVerifyRequest.java     - SMS 인증코드 확인 요청 (phone, code)
   EmailRequest.java         - 이메일 인증코드 발송 요청 (email)
@@ -37,6 +37,8 @@ exception/
 
 model/
   User.java                 - MongoDB에 저장되는 유저 데이터 구조
+                              (id, username, password, nickname, email, phone,
+                               role, jobTitle, career, provider, providerId, createdAt)
 
 repository/
   UserRepository.java       - MongoDB 쿼리 (username/email/phone으로 유저 조회, 중복 확인)

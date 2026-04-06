@@ -74,6 +74,17 @@ Content-Type: application/json
   "email": "test@test.com",
   "username": "testuser",
   "password": "test1234!",
+  "phone": "010-1234-5678",
+  "jobTitle": "백엔드 개발자",
+  "career": "3년"
+}
+
+※ jobTitle(직무)과 career(경력)는 선택 항목이므로 생략 가능:
+{
+  "nickname": "테스트유저",
+  "email": "test@test.com",
+  "username": "testuser",
+  "password": "test1234!",
   "phone": "010-1234-5678"
 }
 
