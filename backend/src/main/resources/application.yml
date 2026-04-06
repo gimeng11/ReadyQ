@@ -60,5 +60,8 @@ email:
   # spring.mail.password: your-app-password
   mock: true  # true = 실제 발송 없이 콘솔 출력 (개발용)
 
+oauth2:
+  default-redirect-uri: http://localhost:3000/oauth2/redirect
+
 server:
   port: 8080

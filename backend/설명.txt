@@ -44,9 +44,12 @@ repository/
   UserRepository.java       - MongoDB 쿼리 (username/email/phone으로 유저 조회, 중복 확인)
 
 security/
-  JwtUtil.java              - JWT 토큰 생성 및 검증
-  JwtAuthFilter.java        - 요청마다 JWT 토큰 확인하는 필터
-  SecurityConfig.java       - Spring Security 설정 (인증 없이 접근 가능한 경로 지정)
+  JwtUtil.java                    - JWT 토큰 생성 및 검증
+  JwtAuthFilter.java              - 요청마다 JWT 토큰 확인하는 필터
+  SecurityConfig.java             - Spring Security 설정 (인증 없이 접근 가능한 경로 지정)
+  OAuth2UserService.java          - SNS 로그인 시 유저 정보 조회 및 자동 회원가입 처리
+  OAuth2SuccessHandler.java       - OAuth2 인증 성공 후 JWT 발급 및 앱으로 리다이렉트
+  OAuthRedirectCookieFilter.java  - SNS 로그인 시 앱 딥링크 URI를 쿠키에 임시 저장하는 필터
 
 service/
   AuthService.java          - 로그인, 회원가입, 아이디/비밀번호 찾기 로직
@@ -65,6 +68,13 @@ POST   /api/auth/email/send           이메일 인증코드 발송 (아이디/�
 POST   /api/auth/find-username        아이디 찾기 (이메일 OTP 인증 후 반환)
 POST   /api/auth/find-password/verify 비밀번호 찾기 본인확인 → resetToken 반환
 POST   /api/auth/reset-password       비밀번호 재설정 (resetToken + 새 비밀번호)
+
+GET    /oauth2/authorization/kakao    카카오 SNS 로그인 시작 (브라우저/앱에서 직접 접근)
+GET    /oauth2/authorization/naver    네이버 SNS 로그인 시작
+GET    /oauth2/authorization/google   구글 SNS 로그인 시작
+  ※ 위 3개는 앱에서 app_redirect 쿼리 파라미터로 딥링크 URI를 전달해야 함
+     예) /oauth2/authorization/kakao?app_redirect=readyq://oauth2/redirect
+  ※ 인증 성공 시 → {app_redirect}?token={JWT} 로 리다이렉트
 
 -------------------------------------
 [ SMS 인증 방식 ]
@@ -94,6 +104,27 @@ POST   /api/auth/reset-password       비밀번호 재설정 (resetToken + 새 �
 실제 이메일 발송이 필요하면:
   - application.yml에서 email.mock: false 로 변경
   - Spring Mail 의존성 추가 후 EmailService.java 내 발송 로직 구현
+
+-------------------------------------
+[ SNS 로그인 연동 방식 ]
+-------------------------------------
+
+앱(React Native) ↔ 백엔드 SNS 로그인 흐름:
+
+1. 앱에서 카카오/네이버/구글 버튼 클릭
+2. expo-linking으로 앱의 딥링크 URI 생성
+   (Expo Go: exp://192.168.x.x:8081/--/oauth2/redirect)
+   (standalone 빌드: readyq://oauth2/redirect)
+3. expo-web-browser로 아래 URL 열기:
+   http://{서버IP}:8080/oauth2/authorization/{provider}?app_redirect={딥링크}
+4. OAuthRedirectCookieFilter가 app_redirect를 쿠키에 저장
+5. 카카오/네이버/구글에서 로그인 및 동의
+6. OAuth2SuccessHandler에서 JWT 생성 후 쿠키의 app_redirect로 리다이렉트:
+   {딥링크}?token={JWT}
+7. 앱에서 URL 파싱 → token 추출 → AsyncStorage 저장 → Home 화면 이동
+
+지원 provider: kakao, naver, google
+SNS 계정이 DB에 없으면 자동으로 회원가입 처리됨 (OAuth2UserService)
 
 -------------------------------------
 [ 실행 방법 ]

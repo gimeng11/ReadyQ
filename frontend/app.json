@@ -25,6 +25,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "scheme": "readyq",
     "plugins": [
       "expo-font",
       "expo-web-browser"
