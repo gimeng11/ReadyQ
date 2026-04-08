@@ -63,5 +63,21 @@ email:
 oauth2:
   default-redirect-uri: http://localhost:3000/oauth2/redirect
 
+gemini:
+  api:
+    key: ${GEMINI_API_KEY:YOUR_GEMINI_API_KEY}
+
+interview:
+  video:
+    upload:
+      path: ./uploads/interview-videos
+    max-size: 100MB
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 110MB
+
 server:
   port: 8080
