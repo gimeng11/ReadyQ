@@ -38,6 +38,10 @@ spring:
   data:
     mongodb:
       uri: ${MONGODB_URI}
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 110MB
 
 jwt:
   secret: ${JWT_SECRET}
@@ -72,12 +76,6 @@ interview:
     upload:
       path: ./uploads/interview-videos
     max-size: 100MB
-
-spring:
-  servlet:
-    multipart:
-      max-file-size: 100MB
-      max-request-size: 110MB
 
 server:
   port: 8080

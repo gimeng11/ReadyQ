@@ -26,7 +26,7 @@ public class GeminiInterviewService {
 
     private static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
     private static final String GEMINI_UPLOAD_URL = "https://generativelanguage.googleapis.com/upload/v1beta/files";
-    private static final String GEMINI_MODEL = "gemini-1.5-pro";
+    private static final String GEMINI_MODEL = "gemini-2.0-flash";
 
     @Value("${gemini.api.key}")
     private String apiKey;
