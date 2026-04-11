@@ -354,9 +354,16 @@ public class GeminiInterviewService {
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(body)
                     .retrieve()
+                    .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
+                            clientResponse -> clientResponse.bodyToMono(String.class)
+                                    .doOnNext(errBody -> log.warn("Gemini(video) {} 응답 본문: {}", clientResponse.statusCode().value(), errBody))
+                                    .flatMap(errBody -> reactor.core.publisher.Mono.error(
+                                            new org.springframework.web.reactive.function.client.WebClientResponseException(
+                                                    clientResponse.statusCode().value(), clientResponse.statusCode().toString(), null, errBody.getBytes(), null))))
                     .bodyToMono(String.class)
                     .retryWhen(Retry.backoff(3, Duration.ofSeconds(10))
-                            .filter(e -> e instanceof org.springframework.web.reactive.function.client.WebClientResponseException.TooManyRequests)
+                            .filter(e -> e instanceof org.springframework.web.reactive.function.client.WebClientResponseException
+                                    && ((org.springframework.web.reactive.function.client.WebClientResponseException) e).getStatusCode().value() == 429)
                             .doBeforeRetry(rs -> log.warn("Gemini 429 — {}초 후 재시도 ({}/3)", 10 * (1L << rs.totalRetries()), rs.totalRetries() + 1)))
                     .block();
 
