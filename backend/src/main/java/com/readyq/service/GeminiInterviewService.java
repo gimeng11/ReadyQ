@@ -14,7 +14,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import reactor.util.retry.Retry;
+
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,7 +29,7 @@ public class GeminiInterviewService {
 
     private static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
     private static final String GEMINI_UPLOAD_URL = "https://generativelanguage.googleapis.com/upload/v1beta/files";
-    private static final String GEMINI_MODEL = "gemini-2.0-flash";
+    private static final String GEMINI_MODEL = "gemini-2.5-flash";
 
     @Value("${gemini.api.key}")
     private String apiKey;
@@ -304,12 +307,23 @@ public class GeminiInterviewService {
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(body)
                     .retrieve()
+                    .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
+                            clientResponse -> clientResponse.bodyToMono(String.class)
+                                    .doOnNext(errBody -> log.warn("Gemini {} 응답 본문: {}", clientResponse.statusCode().value(), errBody))
+                                    .flatMap(errBody -> reactor.core.publisher.Mono.error(
+                                            new org.springframework.web.reactive.function.client.WebClientResponseException(
+                                                    clientResponse.statusCode().value(), clientResponse.statusCode().toString(), null, errBody.getBytes(), null))))
                     .bodyToMono(String.class)
+                    .retryWhen(Retry.backoff(3, Duration.ofSeconds(10))
+                            .filter(e -> e instanceof org.springframework.web.reactive.function.client.WebClientResponseException
+                                    && ((org.springframework.web.reactive.function.client.WebClientResponseException) e).getStatusCode().value() == 429)
+                            .doBeforeRetry(rs -> log.warn("Gemini 429 — {}초 후 재시도 ({}/3)", 10 * (1L << rs.totalRetries()), rs.totalRetries() + 1)))
                     .block();
 
             return extractTextFromResponse(response);
         } catch (Exception e) {
-            log.error("Gemini 텍스트 호출 실패", e);
+            String safeMsg = e.getMessage() != null ? e.getMessage().replace(apiKey, "***") : "unknown";
+            log.error("Gemini 텍스트 호출 실패: {}", safeMsg);
             throw new RuntimeException("Gemini API 호출에 실패했습니다.", e);
         }
     }
@@ -341,11 +355,15 @@ public class GeminiInterviewService {
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .retryWhen(Retry.backoff(3, Duration.ofSeconds(10))
+                            .filter(e -> e instanceof org.springframework.web.reactive.function.client.WebClientResponseException.TooManyRequests)
+                            .doBeforeRetry(rs -> log.warn("Gemini 429 — {}초 후 재시도 ({}/3)", 10 * (1L << rs.totalRetries()), rs.totalRetries() + 1)))
                     .block();
 
             return extractTextFromResponse(response);
         } catch (Exception e) {
-            log.error("Gemini 영상 포함 호출 실패", e);
+            String safeMsg = e.getMessage() != null ? e.getMessage().replace(apiKey, "***") : "unknown";
+            log.error("Gemini 영상 포함 호출 실패: {}", safeMsg);
             throw new RuntimeException("Gemini API 호출에 실패했습니다.", e);
         }
     }
