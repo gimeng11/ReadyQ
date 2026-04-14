@@ -4,21 +4,21 @@ spring:
       client:
         registration:
           google:
-            client-id: 1083921853308-6fjiq0voam2ogvhtbmoa31lpr837q606.apps.googleusercontent.com
-            client-secret: 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
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
             scope:
               - email
               - profile
           naver:
-            client-id: aWDshZ3JhMq8uFq3hAo3
-            client-secret: XSWzgYmhv0
+            client-id: ${NAVER_CLIENT_ID}
+            client-secret: ${NAVER_CLIENT_SECRET}
             redirect-uri: "{baseUrl}/{action}/oauth2/code/{registrationId}"
             authorization-grant-type: authorization_code
             scope: name, email
             client-name: Naver
           kakao:
-            client-id: 957465cac66ad53e763300643c9a0b0e
-            client-secret: vfFJcYltZlEJiV1VyjkfskCDzLLoGJjm
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET}
             client-authentication-method: client_secret_post
             redirect-uri: "{baseUrl}/{action}/oauth2/code/{registrationId}"
             authorization-grant-type: authorization_code
@@ -37,10 +37,14 @@ spring:
             user-name-attribute: id
   data:
     mongodb:
-      uri: mongodb+srv://2071199:dydrkfl!23@cluster0.b72qlr9.mongodb.net/ReadyQ?appName=Cluster0
+      uri: ${MONGODB_URI}
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 110MB
 
 jwt:
-  secret: your-secret-key-change-this-in-production-must-be-at-least-256-bits-long
+  secret: ${JWT_SECRET}
   expiration: 86400000  # 24시간 (ms)
 
 sms:
@@ -62,6 +66,16 @@ email:
 
 oauth2:
   default-redirect-uri: http://localhost:3000/oauth2/redirect
+
+gemini:
+  api:
+    key: ${GEMINI_API_KEY:YOUR_GEMINI_API_KEY}
+
+interview:
+  video:
+    upload:
+      path: ./uploads/interview-videos
+    max-size: 100MB
 
 server:
   port: 8080

@@ -1,0 +1,250 @@
+=====================================
+ ReadyQ 백엔드 - AI 면접 설명
+=====================================
+
+[ 개요 ]
+Gemini 1.5 Pro를 활용한 AI 면접 시뮬레이션 기능.
+지원자가 영상으로 답변을 제출하면 Gemini가 영상을 분석하여
+교시별 피드백, 꼬리질문, 최종 종합 피드백을 제공함.
+
+-------------------------------------
+[ 사용 기술 ]
+-------------------------------------
+
+- Gemini 1.5 Pro API (영상 분석, 피드백 생성, 질문 생성)
+- Gemini File API (영상 업로드)
+- Spring WebFlux WebClient (Gemini REST API 호출)
+- MongoDB (면접 세션 및 피드백 저장)
+
+-------------------------------------
+[ 폴더 구조 ]
+-------------------------------------
+
+model/interview/
+  InterviewerType.java    - 면접관 유형 enum (FRIENDLY / PRESSURE / LOGIC / DEFAULT)
+  InterviewStatus.java    - 세션 상태 enum (IN_PROGRESS / COMPLETED)
+  QuestionType.java       - 질문 유형 enum (INTRO / COMPANY / FOLLOW_UP / NEW)
+  InterviewSession.java   - MongoDB 도큐먼트 (세션 전체 데이터)
+  PeriodResult.java       - 교시 결과 (질문, 영상경로, 피드백JSON, 꼬리질문 목록)
+  PeriodFeedback.java     - 교시 피드백 객체 (점수, 상세피드백, 개선팁)
+  FinalFeedback.java      - 최종 피드백 객체 (종합점수, 강점, 개선점, 이전비교)
+
+repository/
+  InterviewSessionRepository.java  - 세션 조회 쿼리
+
+service/
+  GeminiInterviewService.java  - Gemini API 연동 전담 서비스
+  InterviewService.java        - 면접 비즈니스 로직 전체
+
+controller/
+  InterviewController.java     - 면접 API 엔드포인트
+
+dto/interview/
+  StartInterviewRequest.java   - 면접 시작 요청 (interviewerType, coverLetter, targetCompany, targetJob)
+  StartInterviewResponse.java  - 면접 시작 응답 (sessionId, periodNum, question, message)
+  NextPeriodRequest.java       - 다음 교시 요청 (choiceType, selectedQuestion)
+  NextPeriodResponse.java      - 다음 교시 응답 (sessionId, periodNum, question, questionType)
+  BreakTimeResponse.java       - 쉬는시간 응답 (피드백 요약, 계속여부)
+  NextPeriodOptions.java       - 쉬는시간 선택지 (꼬리질문 5개, 새질문, 종료)
+  FinalFeedbackResponse.java   - 최종 피드백 응답 (finalFeedback, 교시별 피드백 목록)
+
+config/
+  WebClientConfig.java     - WebClient Bean 등록 (200MB 코덱 설정)
+
+-------------------------------------
+[ API 목록 ]
+-------------------------------------
+
+POST   /api/interview/start
+       면접 세션 생성 + 1교시 질문 반환
+       ※ Authorization: Bearer {토큰} 필수
+
+POST   /api/interview/{sessionId}/period/{num}/submit
+       영상 제출 → Gemini 피드백 + 꼬리질문 생성 → 쉬는시간 응답
+       ※ multipart/form-data 형식, 파일 key: "video"
+
+GET    /api/interview/{sessionId}/period/{num}/options
+       쉬는시간 선택지 반환 (꼬리질문 5개 + 새질문 가능 + 종료 가능)
+
+POST   /api/interview/{sessionId}/period/{num}/next
+       다음 교시 진행 (FOLLOW_UP / NEW_QUESTION / END_INTERVIEW)
+
+POST   /api/interview/{sessionId}/complete
+       면접 종료 + 최종 피드백 생성 + MongoDB 저장
+
+GET    /api/interview/history
+       내 과거 면접 목록 (최신순)
+
+GET    /api/interview/{sessionId}/feedback
+       특정 세션의 최종 피드백 조회
+
+GET    /api/interview/{sessionId}/period/{num}/feedback
+       특정 교시의 피드백 조회
+
+-------------------------------------
+[ 면접관 유형별 피드백 스타일 ]
+-------------------------------------
+
+※ 아래 4가지 유형 모두 동일한 논문 기반 수치 기준(SPM, 추임새 횟수, Hz, dB 등)으로 평가하며,
+   피드백의 어조(톤)만 유형별로 다르게 적용됨.
+
+FRIENDLY  - 격려 위주. 잘한 점 충분히 칭찬 후 개선점을 긍정적 관점으로 부드럽게 제안.
+            지원자 자신감을 유지시키는 응원 어조.
+PRESSURE  - 날카롭고 직설적. 허점·모호한 표현·준비 부족을 가감 없이 강한 어조로 지적.
+            완곡 표현 없이 문제점을 직접 짚어 개선 요구.
+LOGIC     - 논리적 근거 중심. 주장과 사례의 일관성, 결론 도출의 비약 여부를 분석.
+            감정 평가 없이 논리 구조·데이터·사실 기반으로만 평가.
+DEFAULT   - 중립적 전문 피드백. 과도한 칭찬·혹독한 비판 없이 강점/개선점 동등 비중으로 제시.
+
+-------------------------------------
+[ 교시 피드백 평가 항목 및 수치 기준 ]
+-------------------------------------
+
+logicStructure  : 논리구조력 (0~100점)
+                  주장-근거-사례 구조, 결론 도출 비약 여부 평가
+
+speechSpeed     : 말하기속도 (논문 기반 SPM 기준)
+                  이상적 범위: 265~350 SPM (한국 성인 평균 265, 아나운서 350)
+                  허용 범위:   250~410 SPM
+                  250 미만 → 너무 느림 감점 / 410 초과 → 너무 빠름 감점
+                  출처: 신문자(2003), 김국환(2021)
+
+voiceVolume     : 목소리 전달력 (억양·음도·강도 종합)
+                  남성: 억양변화 90Hz↑, 음도 111~130Hz, 강도 67~72dB
+                  여성: 억양변화 121Hz↑, 음도 231~250Hz, 강도 67~72dB
+                  강도 55~60dB 이하 → 약함 감점 / 단조로운 억양 → 감점
+                  아나운서 참고: 남 158.8Hz, 여 250.7Hz
+
+eyeContact      : 비언어적 태도 (눈맞춤·표정·자세)
+                  한국 면접관 중요도: 말하고듣는태도(63.5%) > 얼굴표정(49.1%)
+                                     > 시선처리(41.3%) > 자세(37.6%)
+                  눈맞춤·미소·고개끄덕임 사용 시 평가 유의미하게 상승
+                  (사용 3.94/5점 vs 미사용 2.78/5점, p<.001)
+                  출처: 박소현·유태용(2014), 엔터웨이파트너스 설문
+
+fillerWords     : 추임새 빈도 (적을수록 높은 점수)
+                  1분 이상: 분당 5회↓ 양호 / 6~11회 주의 / 12회↑ 감점
+                  1분 미만: 5초당 1회 이상이면 감점
+                  출처: Laske et al. (2024) Journal of Applied Behavior Analysis
+
+answerClarity   : 답변명확성 (질문 의도 부합 여부, 핵심 메시지 전달력)
+
+→ overallScore : 위 6개 항목의 종합 점수 (0~100)
+→ detailFeedback: 각 항목에 추정 수치(SPM, Hz, dB, 횟수 등) 포함하여 반환
+
+-------------------------------------
+[ 면접 진행 흐름 ]
+-------------------------------------
+
+1. POST /start
+   → 세션 생성 + Gemini가 자기소개서/직무 기반으로 1교시 질문 생성
+   → sessionId 반환
+
+2. POST /{sessionId}/period/1/submit  (영상 파일 전송)
+   → 영상을 로컬 서버에 저장
+   → Gemini File API에 영상 업로드 (fileUri 획득)
+   → Gemini로 교시 피드백 JSON 생성
+   → Gemini로 꼬리질문 5개 생성 (다음 선택지에 활용)
+   → MongoDB에 저장
+   → 쉬는시간 응답 반환 (overallScore + summaryFeedback 요약)
+
+3. GET /{sessionId}/period/1/options
+   → 꼬리질문 5개 + 새로운 질문 선택지 + 면접 종료 옵션 반환
+
+4. POST /{sessionId}/period/1/next
+   → choiceType에 따라 다음 교시 질문 결정
+     FOLLOW_UP    : selectedQuestion 그대로 사용
+     NEW_QUESTION : Gemini가 새 질문 생성 (이전 질문과 중복 배제)
+     END_INTERVIEW: 면접 종료 안내 메시지 반환
+
+5. (2~4 반복, 교시 수 제한 없음)
+
+6. POST /{sessionId}/complete
+   → 전체 교시 피드백 JSON을 Gemini에 전달
+   → 최종 종합 피드백 생성 (강점, 개선점, 이전 면접 대비 비교)
+   → 세션 상태를 COMPLETED로 변경
+   → FinalFeedbackResponse 반환
+
+-------------------------------------
+[ 영상 저장 경로 ]
+-------------------------------------
+
+로컬 서버에 저장됨:
+  ./uploads/interview-videos/{userId}/{sessionId}/period_{num}.{확장자}
+
+예) ./uploads/interview-videos/testuser/abc123/period_1.mp4
+
+application.yml에서 경로 변경 가능:
+  interview.video.upload.path: ./uploads/interview-videos
+
+-------------------------------------
+[ Gemini File API 동작 방식 ]
+-------------------------------------
+
+1. multipart/related 형식으로 영상 업로드
+   POST https://generativelanguage.googleapis.com/upload/v1beta/files
+
+2. 업로드 완료 후 파일 상태가 ACTIVE가 될 때까지 폴링
+   (2초 간격, 최대 30초 대기)
+
+3. 획득한 fileUri를 generateContent 요청에 포함하여 Gemini 분석 요청
+
+4. Gemini 응답에서 JSON 추출
+   (마크다운 코드블록(```json```) 감싸져 있는 경우도 자동 처리)
+
+-------------------------------------
+[ 이전 면접 비교 (comparisonWithPrev) ]
+-------------------------------------
+
+completeInterview 호출 시 자동 계산됨.
+동일 유저의 이전 COMPLETED 세션 중 가장 최근 세션의 totalScore와 비교.
+
+예시:
+  "+4점 향상"  → 이전 대비 4점 올랐을 때
+  "-2점 하락"  → 이전 대비 2점 낮을 때
+  "첫 번째 면접입니다." → 이전 세션이 없을 때
+
+-------------------------------------
+[ 환경 변수 설정 ]
+-------------------------------------
+
+.env 파일에 아래 항목 추가 필요:
+  GEMINI_API_KEY=AIzaSyCKb46ZMh2bu4QCef-isiPoQvkDj1Pu79c
+
+application.yml 관련 설정:
+  gemini.api.key: ${GEMINI_API_KEY}
+  interview.video.upload.path: ./uploads/interview-videos
+  interview.video.max-size: 100MB
+  spring.servlet.multipart.max-file-size: 100MB
+  spring.servlet.multipart.max-request-size: 110MB
+
+-------------------------------------
+[ MongoDB 컬렉션 ]
+-------------------------------------
+
+컬렉션명: interview_sessions
+인덱스: userId (조회 성능 최적화)
+
+주요 필드:
+  id              : 세션 고유 ID
+  userId          : 로그인한 유저의 username
+  interviewerType : 면접관 유형
+  status          : IN_PROGRESS / COMPLETED
+  coverLetter     : 자기소개서 텍스트
+  targetCompany   : 목표 기업
+  targetJob       : 목표 직무
+  currentPeriod   : 현재 교시 번호
+  periods[]       : 교시별 결과 배열
+  finalFeedback   : 최종 피드백 (COMPLETED 후 생성)
+  createdAt       : 생성 시각
+  completedAt     : 완료 시각
+
+-------------------------------------
+[ 예외 처리 ]
+-------------------------------------
+
+세션 없음       → 400 Bad Request  ("면접 세션을 찾을 수 없습니다")
+권한 없음       → 403 Forbidden    ("해당 세션에 접근할 권한이 없습니다")
+상태 오류       → 409 Conflict     ("아직 완료되지 않은 면접 세션입니다")
+Gemini API 실패 → 500 Server Error ("Gemini API 호출에 실패했습니다")
+영상 저장 실패  → 500 Server Error ("영상 저장에 실패했습니다")
