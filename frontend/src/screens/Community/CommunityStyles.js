@@ -33,6 +33,11 @@ export default StyleSheet.create({
     fontSize: 14,
     marginRight: 8,
   },
+  searchIcon: {
+  width: 20,
+  height: 20,
+  marginRight: 8,
+},
   searchInput: {
     flex: 1,
     fontSize: 13,
@@ -47,8 +52,9 @@ export default StyleSheet.create({
     alignItems: 'center',
   },
   bookmarkIcon: {
-    fontSize: 20,
-  },
+  width: 24,
+  height: 24,
+},
 
 communityNav: {
   marginTop: 8,
@@ -161,8 +167,8 @@ tabItem: {
     marginLeft: 12,
   },
   statIcon: {
-    fontSize: 13,
-    marginRight: 4,
+    width: 16,
+  height: 16,
   },
   statText: {
     fontSize: 13,
@@ -179,7 +185,7 @@ tabItem: {
   /* ── FAB ── */
   postButton: {
     position: 'absolute',
-    bottom: 36,
+    bottom: 120,
     right: 20,
     borderRadius: 30,
     backgroundColor: '#3281FF',

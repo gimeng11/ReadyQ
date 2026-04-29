@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Image,
   FlatList,
   ScrollView,
 } from 'react-native';
@@ -79,11 +80,17 @@ function PostCard({ item }) {
         </View>
         <View style={styles.frameParent2}>
           <View style={styles.statFrame}>
-            <Text style={styles.statIcon}>👍</Text>
+            <Image 
+              source={require('../../../assets/icons/thumbs.png')} 
+              style={styles.statIcon}
+            />
             <Text style={styles.statText}>{item.likes}</Text>
           </View>
           <View style={styles.statFrame}>
-            <Text style={styles.statIcon}>💬</Text>
+             <Image 
+              source={require('../../../assets/icons/community.png')} 
+              style={styles.statIcon}
+            />
             <Text style={styles.statText}>{item.comments}</Text>
           </View>
         </View>
@@ -103,7 +110,10 @@ export default function CommunityScreen({ navigation }) {
       <View style={styles.topBar}>
         <View style={styles.searchTextholderParent}>
           <View style={styles.searchTextholder}>
-            <Text style={styles.searchIconText}>🔍</Text>
+            <Image 
+              source={require('../../../assets/icons/search.png')} 
+              style={styles.searchIcon}
+            />
             <TextInput
               style={styles.searchInput}
               placeholder="게시글을 검색하세요"
@@ -111,13 +121,13 @@ export default function CommunityScreen({ navigation }) {
             />
           </View>
           <TouchableOpacity style={styles.bookmarkBtn}>
-            <Text style={styles.bookmarkIcon}>🔖</Text>
+            <Image 
+              source={require('../../../assets/icons/save.png')} 
+              style={styles.bookmarkIcon}
+            />
           </TouchableOpacity>
         </View>
       </View>
-
-      {/* 탭 네비게이션 */}
-      {/* 탭 네비게이션 */}
 <View style={styles.communityNav}>
   <View style={styles.tabGroup}>
     {TABS.map((tab) => (
