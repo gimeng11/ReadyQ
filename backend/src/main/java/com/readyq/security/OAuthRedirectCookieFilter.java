@@ -18,13 +18,17 @@ public class OAuthRedirectCookieFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        if (request.getRequestURI().startsWith("/oauth2/authorization/")) {
+        if (request.getRequestURI().contains("/oauth2/authorization")) { //startsWith 대신 contains
             String appRedirect = request.getParameter("app_redirect");
+            
+            //테스트 로그
+            System.out.println("OAuth Filter Catch! app_redirect: " + appRedirect);
+            
             if (appRedirect != null && !appRedirect.isEmpty()) {
                 Cookie cookie = new Cookie("oauth2_app_redirect",
                         URLEncoder.encode(appRedirect, StandardCharsets.UTF_8));
                 cookie.setPath("/");
-                cookie.setHttpOnly(true);
+                cookie.setHttpOnly(false); //expo테스트 false로변경
                 cookie.setMaxAge(300); // 5분
                 response.addCookie(cookie);
             }
