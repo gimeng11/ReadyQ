@@ -6,7 +6,11 @@
       "Bash(cp \"C:/프로젝트/ReadyQ/backend/src/main/resources/application.yml\" /tmp/clean_application.yml)",
       "Read(//tmp/**)",
       "Bash(npm install:*)",
-      "Bash(npx expo:*)"
+      "Bash(npx expo:*)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\" -Force | ForEach-Object { $_ | Select-Object -Property Name, @{Name=\"Type\";Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}} } | Format-Table -AutoSize)",
+      "Bash(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\\\\backend\\\\src\\\\main\\\\java\\\\com\\\\readyq\" -Recurse -Filter \"*.java\")",
+      "Bash(Select-Object FullName)",
+      "Bash(Sort-Object FullName)"
     ]
   }
 }

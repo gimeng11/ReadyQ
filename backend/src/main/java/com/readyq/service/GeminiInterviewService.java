@@ -240,7 +240,7 @@ public class GeminiInterviewService {
             return "{\"scores\":{\"logicStructure\":70,\"speechSpeed\":70,\"voiceVolume\":70,\"eyeContact\":70,\"fillerWords\":70,\"answerClarity\":70}," +
                    "\"overallScore\":70,\"summaryFeedback\":\"AI 분석을 일시적으로 사용할 수 없습니다. 답변을 잘 하셨습니다.\"," +
                    "\"detailFeedback\":{\"logicStructure\":\"분석 불가\",\"speechSpeed\":\"분석 불가\",\"voiceVolume\":\"분석 불가\",\"eyeContact\":\"분석 불가\",\"fillerWords\":\"분석 불가\",\"answerClarity\":\"분석 불가\"}," +
-                   "\"improvementTips\":[\"다음 답변에서도 자신감 있게 말해보세요.\",\"핵심을 먼저 말하는 두berlins 구조를 활용해 보세요.\",\"구체적인 사례를 들어 답변을 풍부하게 만들어 보세요.\"]}";
+                   "\"improvementTips\":[\"다음 답변에서도 자신감 있게 말해보세요.\",\"핵심을 먼저 말하는 두괄식 구조를 활용해 보세요.\",\"구체적인 사례를 들어 답변을 풍부하게 만들어 보세요.\"]}";
         }
     }
 
@@ -259,7 +259,17 @@ public class GeminiInterviewService {
                 "{\"questions\": [\"질문1\", \"질문2\", \"질문3\", \"질문4\", \"질문5\"]}",
                 prevQuestion);
 
-        String raw = callGeminiWithVideo(fileUri, prompt);
+        String raw;
+        try {
+            raw = callGeminiWithVideo(fileUri, prompt);
+        } catch (Exception e) {
+            log.warn("꼬리질문 Gemini 호출 실패 — 기본 질문 반환: {}", e.getMessage());
+            return List.of("이전 답변에서 더 자세히 설명해 주실 수 있나요?",
+                           "그렇게 생각하신 근거가 있나요?",
+                           "구체적인 사례를 들어 주실 수 있나요?",
+                           "다른 방법은 고려해 보셨나요?",
+                           "그 경험에서 무엇을 배우셨나요?");
+        }
         String json = extractJson(raw);
         try {
             JsonNode root = objectMapper.readTree(json);
@@ -404,12 +414,14 @@ public class GeminiInterviewService {
                     .retryWhen(Retry.backoff(2, Duration.ofSeconds(5))
                             .filter(e -> {
                                 if (!(e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ex)) return false;
-                                if (ex.getStatusCode().value() != 429) return false;
+                                int status = ex.getStatusCode().value();
+                                if (status == 503) return true;
+                                if (status != 429) return false;
                                 // 월 한도 초과(RESOURCE_EXHAUSTED)는 재시도 불필요
                                 String errBody = ex.getResponseBodyAsString();
                                 return !errBody.contains("RESOURCE_EXHAUSTED") && !errBody.contains("spending cap");
                             })
-                            .doBeforeRetry(rs -> log.warn("Gemini 429 — {}초 후 재시도 ({}/2)", 5 * (1L << rs.totalRetries()), rs.totalRetries() + 1)))
+                            .doBeforeRetry(rs -> log.warn("Gemini 429/503 — {}초 후 재시도 ({}/2)", 5 * (1L << rs.totalRetries()), rs.totalRetries() + 1)))
                     .block();
 
             return extractTextFromResponse(response);
@@ -456,12 +468,14 @@ public class GeminiInterviewService {
                     .retryWhen(Retry.backoff(2, Duration.ofSeconds(5))
                             .filter(e -> {
                                 if (!(e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ex)) return false;
-                                if (ex.getStatusCode().value() != 429) return false;
+                                int status = ex.getStatusCode().value();
+                                if (status == 503) return true;
+                                if (status != 429) return false;
                                 // 월 한도 초과(RESOURCE_EXHAUSTED)는 재시도 불필요
                                 String errBody = ex.getResponseBodyAsString();
                                 return !errBody.contains("RESOURCE_EXHAUSTED") && !errBody.contains("spending cap");
                             })
-                            .doBeforeRetry(rs -> log.warn("Gemini 429 — {}초 후 재시도 ({}/2)", 5 * (1L << rs.totalRetries()), rs.totalRetries() + 1)))
+                            .doBeforeRetry(rs -> log.warn("Gemini 429/503 — {}초 후 재시도 ({}/2)", 5 * (1L << rs.totalRetries()), rs.totalRetries() + 1)))
                     .block();
 
             return extractTextFromResponse(response);

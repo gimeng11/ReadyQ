@@ -1,4 +1,4 @@
-import { View, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native'
 import { useState } from 'react'
 import { styles } from './SignUpStyles'
 import CustomText from '../../components/CustomText'
@@ -156,33 +156,7 @@ export default function SignUpScreen({ navigation }) {
           />
 
         </View>
-
-<CustomText weight="medium" style={styles.label}>
-  인증번호
-</CustomText>
-<TextInput
-  placeholder="인증번호 6자리를 입력하세요"
-  style={styles.input}
-/>
-
-<CustomButton
-  title="회원가입"
-  type="secondary"
-  style={styles.button}
-  onPress={() => navigation.navigate('SignUpJob')}
-/>
-
-<View style={styles.bottomSection}>
-  <CustomText style={styles.companyText}>
-    기업 회원이신가요?
-  </CustomText>
-  <TouchableOpacity>
-    <CustomText weight="medium" style={styles.companyLink}>
-      기업 회원으로 회원가입하기
-    </CustomText>
-  </TouchableOpacity>
-</View>
-</ScrollView>
+      </ScrollView>
     </View>
     </KeyboardAvoidingView>
   )
