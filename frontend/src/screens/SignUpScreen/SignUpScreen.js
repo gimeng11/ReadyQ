@@ -1,4 +1,4 @@
-import { View, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native'
+import { View, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native'
 import { useState } from 'react'
 import { styles } from './SignUpStyles'
 import CustomText from '../../components/CustomText'
@@ -74,9 +74,10 @@ export default function SignUpScreen({ navigation }) {
   }
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <View style={styles.container}>
       <Header title="개인 회원가입" onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.inner}>
 
           <CustomText weight="medium" style={styles.label}>닉네임</CustomText>
@@ -183,5 +184,6 @@ export default function SignUpScreen({ navigation }) {
 </View>
 </ScrollView>
     </View>
+    </KeyboardAvoidingView>
   )
 }

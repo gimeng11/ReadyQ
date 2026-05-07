@@ -141,7 +141,12 @@ public class GeminiInterviewService {
                 "질문 외에 다른 텍스트는 절대 포함하지 마세요.",
                 interviewerDescription, targetCompany, targetJob, coverLetter);
 
-        return callGeminiText(prompt).trim();
+        try {
+            return callGeminiText(prompt).trim();
+        } catch (Exception e) {
+            log.warn("Gemini 질문 생성 실패 — 기본 질문 사용: {}", e.getMessage());
+            return String.format("%s의 %s 직무에 지원하신 이유와 함께 간단한 자기소개 부탁드립니다.", targetCompany, targetJob);
+        }
     }
 
     // ───────────────────────────────────────────────
@@ -227,8 +232,16 @@ public class GeminiInterviewService {
                 "}",
                 interviewerDescription, question, coverLetter);
 
-        String raw = callGeminiWithVideo(fileUri, prompt);
-        return extractJson(raw);
+        try {
+            String raw = callGeminiWithVideo(fileUri, prompt);
+            return extractJson(raw);
+        } catch (Exception e) {
+            log.warn("Gemini 피드백 생성 실패 — 기본 피드백 사용: {}", e.getMessage());
+            return "{\"scores\":{\"logicStructure\":70,\"speechSpeed\":70,\"voiceVolume\":70,\"eyeContact\":70,\"fillerWords\":70,\"answerClarity\":70}," +
+                   "\"overallScore\":70,\"summaryFeedback\":\"AI 분석을 일시적으로 사용할 수 없습니다. 답변을 잘 하셨습니다.\"," +
+                   "\"detailFeedback\":{\"logicStructure\":\"분석 불가\",\"speechSpeed\":\"분석 불가\",\"voiceVolume\":\"분석 불가\",\"eyeContact\":\"분석 불가\",\"fillerWords\":\"분석 불가\",\"answerClarity\":\"분석 불가\"}," +
+                   "\"improvementTips\":[\"다음 답변에서도 자신감 있게 말해보세요.\",\"핵심을 먼저 말하는 두berlins 구조를 활용해 보세요.\",\"구체적인 사례를 들어 답변을 풍부하게 만들어 보세요.\"]}";
+        }
     }
 
     // ───────────────────────────────────────────────
@@ -286,7 +299,23 @@ public class GeminiInterviewService {
                 "질문 한 문장만 반환하세요. 다른 텍스트는 포함하지 마세요.",
                 targetCompany, targetJob, coverLetter, prevQuestionsStr);
 
-        return callGeminiText(prompt).trim();
+        try {
+            return callGeminiText(prompt).trim();
+        } catch (Exception e) {
+            log.warn("Gemini 새 질문 생성 실패 — 기본 질문 사용: {}", e.getMessage());
+            List<String> fallbackQuestions = List.of(
+                "지원한 직무에서 가장 중요하다고 생각하는 역량은 무엇인가요?",
+                "본인의 강점과 약점을 각각 한 가지씩 말씀해 주세요.",
+                "팀 프로젝트에서 갈등을 해결한 경험이 있다면 말씀해 주세요.",
+                "5년 후 본인의 커리어 목표는 무엇인가요?",
+                "가장 어려웠던 문제를 해결한 경험을 말씀해 주세요."
+            );
+            // 이전 질문 목록과 겹치지 않는 것 선택
+            return fallbackQuestions.stream()
+                .filter(q -> !previousQuestions.contains(q))
+                .findFirst()
+                .orElse("본인이 이 직무에 적합한 이유를 말씀해 주세요.");
+        }
     }
 
     // ───────────────────────────────────────────────
@@ -313,8 +342,34 @@ public class GeminiInterviewService {
                 "}",
                 feedbackList);
 
-        String raw = callGeminiText(prompt);
-        return extractJson(raw);
+        try {
+            String raw = callGeminiText(prompt);
+            return extractJson(raw);
+        } catch (Exception e) {
+            log.warn("Gemini 최종 피드백 생성 실패 — 기본 피드백 사용: {}", e.getMessage());
+            // periodFeedbackJsonList에서 점수 평균 계산
+            int total = 0;
+            List<Integer> scores = new ArrayList<>();
+            for (String pfJson : periodFeedbackJsonList) {
+                try {
+                    JsonNode node = objectMapper.readTree(pfJson);
+                    int s = node.path("overallScore").asInt(70);
+                    scores.add(s);
+                    total += s;
+                } catch (Exception ignored) {
+                    scores.add(70);
+                    total += 70;
+                }
+            }
+            int avg = scores.isEmpty() ? 70 : total / scores.size();
+            String scoresJson = scores.toString();
+            return String.format(
+                "{\"totalScore\":%d,\"periodScores\":%s," +
+                "\"strongPoints\":[\"면접에 성실히 임하셨습니다.\",\"질문에 충실하게 답변하셨습니다.\"]," +
+                "\"improvementPoints\":[\"답변을 더 구체적으로 준비해 보세요.\",\"핵심 메시지를 먼저 전달하는 연습을 해보세요.\"]," +
+                "\"overallSummary\":\"AI 분석을 일시적으로 사용할 수 없습니다. 면접에 성실히 임해주셔서 감사합니다.\"}",
+                avg, scoresJson);
+        }
     }
 
     // ───────────────────────────────────────────────
@@ -346,10 +401,15 @@ public class GeminiInterviewService {
                                             new org.springframework.web.reactive.function.client.WebClientResponseException(
                                                     clientResponse.statusCode().value(), clientResponse.statusCode().toString(), null, errBody.getBytes(), null))))
                     .bodyToMono(String.class)
-                    .retryWhen(Retry.backoff(3, Duration.ofSeconds(10))
-                            .filter(e -> e instanceof org.springframework.web.reactive.function.client.WebClientResponseException
-                                    && ((org.springframework.web.reactive.function.client.WebClientResponseException) e).getStatusCode().value() == 429)
-                            .doBeforeRetry(rs -> log.warn("Gemini 429 — {}초 후 재시도 ({}/3)", 10 * (1L << rs.totalRetries()), rs.totalRetries() + 1)))
+                    .retryWhen(Retry.backoff(2, Duration.ofSeconds(5))
+                            .filter(e -> {
+                                if (!(e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ex)) return false;
+                                if (ex.getStatusCode().value() != 429) return false;
+                                // 월 한도 초과(RESOURCE_EXHAUSTED)는 재시도 불필요
+                                String errBody = ex.getResponseBodyAsString();
+                                return !errBody.contains("RESOURCE_EXHAUSTED") && !errBody.contains("spending cap");
+                            })
+                            .doBeforeRetry(rs -> log.warn("Gemini 429 — {}초 후 재시도 ({}/2)", 5 * (1L << rs.totalRetries()), rs.totalRetries() + 1)))
                     .block();
 
             return extractTextFromResponse(response);
@@ -393,10 +453,15 @@ public class GeminiInterviewService {
                                             new org.springframework.web.reactive.function.client.WebClientResponseException(
                                                     clientResponse.statusCode().value(), clientResponse.statusCode().toString(), null, errBody.getBytes(), null))))
                     .bodyToMono(String.class)
-                    .retryWhen(Retry.backoff(3, Duration.ofSeconds(10))
-                            .filter(e -> e instanceof org.springframework.web.reactive.function.client.WebClientResponseException
-                                    && ((org.springframework.web.reactive.function.client.WebClientResponseException) e).getStatusCode().value() == 429)
-                            .doBeforeRetry(rs -> log.warn("Gemini 429 — {}초 후 재시도 ({}/3)", 10 * (1L << rs.totalRetries()), rs.totalRetries() + 1)))
+                    .retryWhen(Retry.backoff(2, Duration.ofSeconds(5))
+                            .filter(e -> {
+                                if (!(e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ex)) return false;
+                                if (ex.getStatusCode().value() != 429) return false;
+                                // 월 한도 초과(RESOURCE_EXHAUSTED)는 재시도 불필요
+                                String errBody = ex.getResponseBodyAsString();
+                                return !errBody.contains("RESOURCE_EXHAUSTED") && !errBody.contains("spending cap");
+                            })
+                            .doBeforeRetry(rs -> log.warn("Gemini 429 — {}초 후 재시도 ({}/2)", 5 * (1L << rs.totalRetries()), rs.totalRetries() + 1)))
                     .block();
 
             return extractTextFromResponse(response);

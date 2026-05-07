@@ -1,4 +1,4 @@
-import { View, TextInput, Image, TouchableOpacity, Alert } from 'react-native'
+import { View, TextInput, Image, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native'
 import { useState } from 'react'
 import * as WebBrowser from 'expo-web-browser'
 import * as Linking from 'expo-linking'
@@ -56,6 +56,7 @@ export default function LoginScreen({ navigation }) {
   }
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <View style={styles.container}>
       <View style={styles.topSection}>
         <CustomText weight="bold" style={styles.title}>
@@ -142,5 +143,6 @@ export default function LoginScreen({ navigation }) {
         </TouchableOpacity>
       </View>
     </View>
+    </KeyboardAvoidingView>
   )
 }

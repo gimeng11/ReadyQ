@@ -1,4 +1,4 @@
-import { View, TextInput, TouchableOpacity, Alert } from 'react-native'
+import { View, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native'
 import { useState } from 'react'
 import { styles } from './FindPwStyles'
 import CustomText from '../../components/CustomText'
@@ -42,6 +42,7 @@ export default function FindPwScreen({ navigation }) {
   }
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <View style={styles.container}>
       <Header title="비밀번호 찾기" onBack={() => navigation.goBack()} />
       <View style={styles.topSection}>
@@ -108,5 +109,6 @@ export default function FindPwScreen({ navigation }) {
         </View>
       </View>
     </View>
+    </KeyboardAvoidingView>
   )
 }

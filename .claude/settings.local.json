@@ -4,7 +4,9 @@
       "Bash(pip install:*)",
       "Bash(pip3 install:*)",
       "Bash(cp \"C:/프로젝트/ReadyQ/backend/src/main/resources/application.yml\" /tmp/clean_application.yml)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(npm install:*)",
+      "Bash(npx expo:*)"
     ]
   }
 }
