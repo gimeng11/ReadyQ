@@ -97,11 +97,12 @@ public class InterviewService {
         periodResult.setVideoPath(videoPath);
 
         // Gemini File API에 영상 업로드
-        String fileUri = geminiService.uploadVideoToGemini(video);
+        GeminiInterviewService.GeminiFileRef fileRef = geminiService.uploadVideoToGemini(video);
 
         // 교시 피드백 생성
         String feedbackJson = geminiService.generatePeriodFeedback(
-                fileUri,
+                fileRef.uri(),
+                fileRef.mimeType(),
                 periodResult.getQuestion(),
                 session.getInterviewerType(),
                 session.getCoverLetter()
@@ -110,7 +111,7 @@ public class InterviewService {
 
         // 꼬리질문 5개 미리 생성 (getNextOptions에서 재활용)
         List<String> followUpQuestions = geminiService.generateFollowUpQuestions(
-                fileUri, periodResult.getQuestion());
+                fileRef.uri(), fileRef.mimeType(), periodResult.getQuestion());
 
         // PeriodResult 업데이트
         periodResult.setFeedbackJson(feedbackJson);
@@ -256,6 +257,8 @@ public class InterviewService {
         session.setCompletedAt(LocalDateTime.now());
         sessionRepository.save(session);
 
+        deleteSessionVideos(userId, sessionId);
+
         return buildFinalFeedbackResponse(session);
     }
 
@@ -343,6 +346,23 @@ public class InterviewService {
     private String getFileExtension(String filename) {
         if (filename == null || !filename.contains(".")) return "mp4";
         return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+    }
+
+    private void deleteSessionVideos(String userId, String sessionId) {
+        try {
+            Path dir = Paths.get(uploadBasePath, userId, sessionId);
+            if (!Files.exists(dir)) return;
+            try (var stream = Files.walk(dir)) {
+                stream.sorted(java.util.Comparator.reverseOrder())
+                      .forEach(path -> {
+                          try { Files.delete(path); }
+                          catch (IOException ex) { log.warn("영상 파일 삭제 실패: {}", path, ex); }
+                      });
+            }
+            log.info("세션 영상 삭제 완료. userId={}, sessionId={}", userId, sessionId);
+        } catch (IOException e) {
+            log.warn("세션 영상 디렉토리 삭제 실패. userId={}, sessionId={}", userId, sessionId, e);
+        }
     }
 
     /**

@@ -27,6 +27,8 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class GeminiInterviewService {
 
+    public record GeminiFileRef(String uri, String mimeType) {}
+
     private static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
     private static final String GEMINI_UPLOAD_URL = "https://generativelanguage.googleapis.com/upload/v1beta/files";
     private static final String GEMINI_MODEL = "gemini-2.5-flash";
@@ -42,9 +44,9 @@ public class GeminiInterviewService {
     // ───────────────────────────────────────────────
 
     /**
-     * 영상 파일을 Gemini File API에 업로드하고 fileUri를 반환한다.
+     * 영상 파일을 Gemini File API에 업로드하고 URI와 실제 MIME 타입을 반환한다.
      */
-    public String uploadVideoToGemini(MultipartFile video) {
+    public GeminiFileRef uploadVideoToGemini(MultipartFile video) {
         try {
             String mimeType = video.getContentType() != null ? video.getContentType() : "video/mp4";
             byte[] fileBytes = video.getBytes();
@@ -89,7 +91,7 @@ public class GeminiInterviewService {
 
             // 영상 처리 완료까지 대기
             waitForFileActive(fileName);
-            return fileUri;
+            return new GeminiFileRef(fileUri, mimeType);
 
         } catch (Exception e) {
             log.error("Gemini 파일 업로드 실패", e);
@@ -142,11 +144,21 @@ public class GeminiInterviewService {
                 interviewerDescription, targetCompany, targetJob, coverLetter);
 
         try {
-            return callGeminiText(prompt).trim();
+            return extractLastLine(callGeminiText(prompt));
         } catch (Exception e) {
             log.warn("Gemini 질문 생성 실패 — 기본 질문 사용: {}", e.getMessage());
             return String.format("%s의 %s 직무에 지원하신 이유와 함께 간단한 자기소개 부탁드립니다.", targetCompany, targetJob);
         }
+    }
+
+    private String extractLastLine(String text) {
+        if (text == null || text.isBlank()) return text == null ? "" : text.trim();
+        String[] lines = text.split("[\\n\\r]+");
+        for (int i = lines.length - 1; i >= 0; i--) {
+            String line = lines[i].trim();
+            if (!line.isEmpty()) return line;
+        }
+        return text.trim();
     }
 
     // ───────────────────────────────────────────────
@@ -159,6 +171,7 @@ public class GeminiInterviewService {
      * @return 순수 JSON 문자열 (PeriodFeedback 구조)
      */
     public String generatePeriodFeedback(String fileUri,
+                                         String mimeType,
                                          String question,
                                          InterviewerType interviewerType,
                                          String coverLetter) {
@@ -188,7 +201,7 @@ public class GeminiInterviewService {
 
                 "[eyeContact - 비언어적 태도]\n" +
                 "눈맞춤, 미소, 고개끄덕임 여부를 주요 기준으로 평가하세요.\n" +
-                "한국 면접관 중요도 순서: 말하고듣는태도(63.5%) > 얼굴표정(49.1%) > 시선처리(41.3%) > 자세(37.6%)\n" +
+                "한국 면접관 중요도 순서: 말하고듣는태도(63.5%%) > 얼굴표정(49.1%%) > 시선처리(41.3%%) > 자세(37.6%%)\n" +
                 "눈맞춤·미소·고개끄덕임 사용 시 면접관 평가 유의미하게 상승 (사용 3.94/5점 vs 미사용 2.78/5점, p<.001)\n" +
                 "출처: 박소현·유태용(2014), 엔터웨이파트너스 설문\n\n" +
 
@@ -233,7 +246,7 @@ public class GeminiInterviewService {
                 interviewerDescription, question, coverLetter);
 
         try {
-            String raw = callGeminiWithVideo(fileUri, prompt);
+            String raw = callGeminiWithVideo(fileUri, mimeType, prompt);
             return extractJson(raw);
         } catch (Exception e) {
             log.warn("Gemini 피드백 생성 실패 — 기본 피드백 사용: {}", e.getMessage());
@@ -251,7 +264,7 @@ public class GeminiInterviewService {
     /**
      * 이전 답변 영상을 분석하여 꼬리질문 5개를 반환한다.
      */
-    public List<String> generateFollowUpQuestions(String fileUri, String prevQuestion) {
+    public List<String> generateFollowUpQuestions(String fileUri, String mimeType, String prevQuestion) {
         String prompt = String.format(
                 "이전 면접 답변 영상을 분석하여 자연스럽게 이어질 수 있는 꼬리질문 5개를 생성해주세요.\n" +
                 "이전 질문: %s\n\n" +
@@ -261,7 +274,7 @@ public class GeminiInterviewService {
 
         String raw;
         try {
-            raw = callGeminiWithVideo(fileUri, prompt);
+            raw = callGeminiWithVideo(fileUri, mimeType, prompt);
         } catch (Exception e) {
             log.warn("꼬리질문 Gemini 호출 실패 — 기본 질문 반환: {}", e.getMessage());
             return List.of("이전 답변에서 더 자세히 설명해 주실 수 있나요?",
@@ -435,11 +448,11 @@ public class GeminiInterviewService {
     /**
      * 영상 fileUri를 포함하여 Gemini 호출
      */
-    private String callGeminiWithVideo(String fileUri, String prompt) {
+    private String callGeminiWithVideo(String fileUri, String mimeType, String prompt) {
         try {
             Map<String, Object> filePart = Map.of(
                     "file_data", Map.of(
-                            "mime_type", "video/mp4",
+                            "mime_type", mimeType,
                             "file_uri", fileUri
                     )
             );

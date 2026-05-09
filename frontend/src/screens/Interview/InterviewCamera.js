@@ -98,12 +98,18 @@ export default function InterviewCamera({ navigation, route }) {
     cameraRef.current?.stopRecording()
   }
 
-  // 영상 제출 → 쉬는시간 피드백
+  // 영상 제출 → 쉬는시간 피드백 (5교시 완료 시 자동 종료)
   const handleSubmit = async () => {
     setLoading(true)
     try {
       const result = await submitPeriodAnswer(sessionId, periodNum, videoUri)
       setBreakData(result)
+
+      if (periodNum >= 5) {
+        await completeInterview(sessionId)
+        navigation.replace('InterviewEnd', { sessionId })
+        return
+      }
 
       // 선택지 미리 fetch
       const opts = await getNextOptions(sessionId, periodNum)

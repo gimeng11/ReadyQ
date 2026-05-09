@@ -10,7 +10,13 @@
       "PowerShell(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\" -Force | ForEach-Object { $_ | Select-Object -Property Name, @{Name=\"Type\";Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}} } | Format-Table -AutoSize)",
       "Bash(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\\\\backend\\\\src\\\\main\\\\java\\\\com\\\\readyq\" -Recurse -Filter \"*.java\")",
       "Bash(Select-Object FullName)",
-      "Bash(Sort-Object FullName)"
+      "Bash(Sort-Object FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\" -Force)",
+      "Bash(Select-Object Name, FullName)",
+      "Bash(Format-Table -AutoSize)",
+      "PowerShell(Head *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\" -Recurse -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -First 20)"
     ]
   }
 }
