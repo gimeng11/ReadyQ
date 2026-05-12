@@ -1,6 +1,7 @@
 import { useFonts } from 'expo-font'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { PostProvider } from './src/context/PostContext';
 
 import StartScreen from './src/screens/StartScreen/StartScreen'
 import LoginScreen from './src/screens/LoginScreen/LoginScreen'
@@ -18,6 +19,10 @@ import ArchiveScreen from './src/screens/Archive/ArchiveScreen'
 import CommunityScreen from './src/screens/Community/CommunityScreen'
 import ProfileScreen from './src/screens/Profile/ProfileScreen'
 import ScheduleScreen from './src/screens/Schedule/ScheduleScreen'
+import PostSelectScreen from './src/screens/Community/PostSelectScreen'
+import PostWriteScreen from './src/screens/Community/PostWriteScreen'
+import PostDetailScreen from './src/screens/Community/PostDetailScreen'
+import ScrapScreen from './src/screens/Community/ScrapScreen'
 
 const Stack = createNativeStackNavigator()
 
@@ -33,6 +38,7 @@ export default function App() {
   }
 
   return (
+    <PostProvider>
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Start" component={StartScreen} />
@@ -51,7 +57,12 @@ export default function App() {
         <Stack.Screen name="Community" component={CommunityScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Schedule" component={ScheduleScreen} />
+        <Stack.Screen name="PostSelect" component={PostSelectScreen} />
+        <Stack.Screen name="PostWrite" component={PostWriteScreen} />
+        <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+        <Stack.Screen name="Scrap" component={ScrapScreen} />
       </Stack.Navigator>
     </NavigationContainer>
+    </PostProvider>
   )
 }
