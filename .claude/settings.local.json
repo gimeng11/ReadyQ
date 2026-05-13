@@ -16,7 +16,12 @@
       "Bash(Format-Table -AutoSize)",
       "PowerShell(Head *)",
       "Bash(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\" -Recurse -ErrorAction SilentlyContinue)",
-      "Bash(Select-Object -First 20)"
+      "Bash(Select-Object -First 20)",
+      "Bash(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\" -Directory)",
+      "Bash(Select-Object Name)",
+      "PowerShell(ls \"C:\\\\프로젝트\\\\ReadyQ\" | Where-Object { $_.PSIsContainer })",
+      "PowerShell(head *)",
+      "PowerShell(ls \"C:\\\\프로젝트\\\\ReadyQ\" -Recurse | Where-Object { -not $_.PSIsContainer } | Select-Object -First 50 FullName)"
     ]
   }
 }

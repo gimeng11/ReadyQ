@@ -39,6 +39,9 @@ export default function InterviewCamera({ navigation, route }) {
   // 로딩 상태
   const [loading, setLoading] = useState(false)
 
+  // 1교시 녹화 남은 시간 (90초)
+  const [recordingTimeLeft, setRecordingTimeLeft] = useState(null)
+
   // exit 모달
   const [exitModalVisible, setExitModalVisible] = useState(false)
 
@@ -74,6 +77,22 @@ export default function InterviewCamera({ navigation, route }) {
     }
   }, [phase, periodNum])
 
+  // 녹화 카운트다운 (모든 교시)
+  useEffect(() => {
+    if (phase !== 'question') return
+    setRecordingTimeLeft(90)
+    const timer = setInterval(() => {
+      setRecordingTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [phase, periodNum])
+
   // 녹화된 videoUri가 세팅되면 submit 호출
   useEffect(() => {
     if (videoUri && phase === 'submitting') {
@@ -85,7 +104,7 @@ export default function InterviewCamera({ navigation, route }) {
     if (!cameraRef.current) return
     try {
       setVideoUri(null)
-      const result = await cameraRef.current.recordAsync({ maxDuration: 300 })
+      const result = await cameraRef.current.recordAsync({ maxDuration: 90 })
       setVideoUri(result.uri)
     } catch (e) {
       console.log('[Camera] 녹화 오류:', e.message)
@@ -139,6 +158,7 @@ export default function InterviewCamera({ navigation, route }) {
       setOptions(null)
       setBreakData(null)
       setVideoUri(null)
+      setRecordingTimeLeft(null)
       setTimeLeft(30)
       setPhase('guide')
     } catch (e) {
@@ -159,6 +179,7 @@ export default function InterviewCamera({ navigation, route }) {
       setOptions(null)
       setBreakData(null)
       setVideoUri(null)
+      setRecordingTimeLeft(null)
       setTimeLeft(30)
       setPhase('guide')
     } catch (e) {
@@ -209,11 +230,19 @@ export default function InterviewCamera({ navigation, route }) {
             <CustomText weight="bold" style={styles.guideTitle}>
               {periodNum}교시 시작까지 {timeLeft}초
             </CustomText>
-            <CustomText style={styles.guideText}>
-              모든 영상 면접은 피드백을 위해 녹화됩니다.{"\n"}
-              위치를 카메라에 잘 보이도록 조정해주세요.{"\n"}
-              긴장을 풀고 면접에 집중해주세요.
-            </CustomText>
+            {periodNum === 1 ? (
+              <CustomText style={styles.guideText}>
+                1교시는 1분 30초 이내 자기소개입니다.{"\n"}
+                위치를 카메라에 잘 보이도록 조정해주세요.{"\n"}
+                긴장을 풀고 자연스럽게 이야기해 주세요.
+              </CustomText>
+            ) : (
+              <CustomText style={styles.guideText}>
+                모든 영상 면접은 피드백을 위해 녹화됩니다.{"\n"}
+                위치를 카메라에 잘 보이도록 조정해주세요.{"\n"}
+                긴장을 풀고 면접에 집중해주세요.
+              </CustomText>
+            )}
             <CustomText weight="bold" style={styles.guideTime}>
               {timeLeft}
             </CustomText>
@@ -227,6 +256,11 @@ export default function InterviewCamera({ navigation, route }) {
           <CustomText weight="bold" style={styles.questionText}>
             {periodNum}교시{"\n"}{question}
           </CustomText>
+          {recordingTimeLeft !== null && (
+            <CustomText style={localStyles.recordingTimer}>
+              남은 시간: {recordingTimeLeft}초
+            </CustomText>
+          )}
         </View>
       )}
 
@@ -387,6 +421,12 @@ export default function InterviewCamera({ navigation, route }) {
 }
 
 const localStyles = StyleSheet.create({
+  recordingTimer: {
+    color: '#FFD700',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.7)',

@@ -129,25 +129,42 @@ public class GeminiInterviewService {
     // ───────────────────────────────────────────────
 
     /**
-     * 자기소개서 · 직무 정보를 바탕으로 1교시 첫 질문을 생성한다.
+     * 1교시는 항상 고정 자기소개 질문을 반환한다.
      */
     public String generateInitialQuestion(String coverLetter,
                                           String targetCompany,
                                           String targetJob,
                                           InterviewerType interviewerType) {
+        return "1분 30초 이내로 간단한 자기소개를 해주세요.";
+    }
+
+    /**
+     * 1교시 자기소개 영상을 분석하여 이후 교시 질문을 생성한다.
+     */
+    public String generateQuestionFromIntroVideo(String introFileUri,
+                                                  String introMimeType,
+                                                  String coverLetter,
+                                                  String targetCompany,
+                                                  String targetJob,
+                                                  InterviewerType interviewerType,
+                                                  List<String> previousQuestions) {
         String interviewerDescription = getInterviewerDescription(interviewerType);
+        String prevQuestionsStr = previousQuestions.isEmpty() ? "없음" : String.join("\n- ", previousQuestions);
         String prompt = String.format(
-                "%s\n\n지원자는 %s의 %s 직무에 지원했습니다.\n" +
+                "%s\n\n" +
+                "지원자는 %s의 %s 직무에 지원했습니다.\n" +
                 "자기소개서: %s\n\n" +
-                "면접 첫 번째 질문(자기소개 요청 또는 지원 동기 질문)을 한 문장으로만 생성해주세요. " +
-                "질문 외에 다른 텍스트는 절대 포함하지 마세요.",
-                interviewerDescription, targetCompany, targetJob, coverLetter);
+                "위 영상은 지원자의 1분 30초 자기소개 영상입니다. " +
+                "이 자기소개 내용을 바탕으로 심층 면접 질문 1개를 생성해주세요.\n" +
+                "이미 사용한 질문 (중복 금지):\n- %s\n\n" +
+                "질문 한 문장만 반환하세요. 다른 텍스트는 포함하지 마세요.",
+                interviewerDescription, targetCompany, targetJob, coverLetter, prevQuestionsStr);
 
         try {
-            return extractLastLine(callGeminiText(prompt));
+            return extractLastLine(callGeminiWithVideo(introFileUri, introMimeType, prompt));
         } catch (Exception e) {
-            log.warn("Gemini 질문 생성 실패 — 기본 질문 사용: {}", e.getMessage());
-            return String.format("%s의 %s 직무에 지원하신 이유와 함께 간단한 자기소개 부탁드립니다.", targetCompany, targetJob);
+            log.warn("자기소개 영상 기반 질문 생성 실패 — 텍스트 기반으로 대체: {}", e.getMessage());
+            return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions);
         }
     }
 

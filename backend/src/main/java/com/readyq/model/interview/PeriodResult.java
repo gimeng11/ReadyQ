@@ -23,6 +23,12 @@ public class PeriodResult {
     // 영상 저장 경로
     private String videoPath;
 
+    // Gemini File API URI (이후 교시 질문 생성에 재활용)
+    private String geminiFileUri;
+
+    // Gemini 파일 MIME 타입
+    private String geminiMimeType;
+
     // Gemini 원본 응답 JSON (raw)
     private String feedbackJson;
 

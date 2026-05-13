@@ -99,6 +99,10 @@ public class InterviewService {
         // Gemini File API에 영상 업로드
         GeminiInterviewService.GeminiFileRef fileRef = geminiService.uploadVideoToGemini(video);
 
+        // Gemini URI 저장 (이후 교시 질문 생성에 재활용)
+        periodResult.setGeminiFileUri(fileRef.uri());
+        periodResult.setGeminiMimeType(fileRef.mimeType());
+
         // 교시 피드백 생성
         String feedbackJson = geminiService.generatePeriodFeedback(
                 fileRef.uri(),
@@ -192,12 +196,31 @@ public class InterviewService {
             List<String> previousQuestions = session.getPeriods().stream()
                     .map(PeriodResult::getQuestion)
                     .collect(Collectors.toList());
-            nextQuestion = geminiService.generateNewQuestion(
-                    session.getCoverLetter(),
-                    session.getTargetCompany(),
-                    session.getTargetJob(),
-                    previousQuestions
-            );
+
+            // 1교시 자기소개 영상이 있으면 영상 기반 질문 생성
+            PeriodResult introPeriod = session.getPeriods().stream()
+                    .filter(p -> p.getPeriodNum() == 1 && p.getGeminiFileUri() != null)
+                    .findFirst()
+                    .orElse(null);
+
+            if (introPeriod != null) {
+                nextQuestion = geminiService.generateQuestionFromIntroVideo(
+                        introPeriod.getGeminiFileUri(),
+                        introPeriod.getGeminiMimeType() != null ? introPeriod.getGeminiMimeType() : "video/mp4",
+                        session.getCoverLetter(),
+                        session.getTargetCompany(),
+                        session.getTargetJob(),
+                        session.getInterviewerType(),
+                        previousQuestions
+                );
+            } else {
+                nextQuestion = geminiService.generateNewQuestion(
+                        session.getCoverLetter(),
+                        session.getTargetCompany(),
+                        session.getTargetJob(),
+                        previousQuestions
+                );
+            }
             questionType = QuestionType.NEW;
 
         } else {
