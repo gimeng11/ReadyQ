@@ -47,6 +47,8 @@ public class SecurityConfig {
                     "/login/oauth2/code/naver",
                     "/login/oauth2/code/kakao"
                 ).permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/boards/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/boards/*/comments").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
