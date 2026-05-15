@@ -153,12 +153,11 @@ public class GeminiInterviewService {
         String prompt = String.format(
                 "%s\n\n" +
                 "지원자는 %s의 %s 직무에 지원했습니다.\n" +
-                "자기소개서: %s\n\n" +
                 "위 영상은 지원자의 1분 30초 자기소개 영상입니다. " +
                 "이 자기소개 내용을 바탕으로 심층 면접 질문 1개를 생성해주세요.\n" +
                 "이미 사용한 질문 (중복 금지):\n- %s\n\n" +
                 "질문 한 문장만 반환하세요. 다른 텍스트는 포함하지 마세요.",
-                interviewerDescription, targetCompany, targetJob, coverLetter, prevQuestionsStr);
+                interviewerDescription, targetCompany, targetJob, prevQuestionsStr);
 
         try {
             return extractLastLine(callGeminiWithVideo(introFileUri, introMimeType, prompt));
@@ -333,11 +332,10 @@ public class GeminiInterviewService {
         String prevQuestionsStr = String.join("\n- ", previousQuestions);
         String prompt = String.format(
                 "%s 회사의 %s 직무 면접에서 사용할 새로운 질문을 1개 생성해주세요.\n" +
-                "자기소개서: %s\n\n" +
                 "이미 사용한 질문 (중복 금지):\n- %s\n\n" +
                 "직무 역량, 문제해결 경험, 협업 능력 중 한 가지를 중심으로 " +
                 "질문 한 문장만 반환하세요. 다른 텍스트는 포함하지 마세요.",
-                targetCompany, targetJob, coverLetter, prevQuestionsStr);
+                targetCompany, targetJob, prevQuestionsStr);
 
         try {
             return callGeminiText(prompt).trim();

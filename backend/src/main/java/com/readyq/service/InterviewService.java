@@ -16,6 +16,9 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -25,6 +28,7 @@ public class InterviewService {
 
     private final InterviewSessionRepository sessionRepository;
     private final GeminiInterviewService geminiService;
+    private final ExecutorService geminiExecutor = Executors.newCachedThreadPool();
 
     @Value("${interview.video.upload.path:./uploads/interview-videos}")
     private String uploadBasePath;
@@ -103,19 +107,24 @@ public class InterviewService {
         periodResult.setGeminiFileUri(fileRef.uri());
         periodResult.setGeminiMimeType(fileRef.mimeType());
 
-        // 교시 피드백 생성
-        String feedbackJson = geminiService.generatePeriodFeedback(
-                fileRef.uri(),
-                fileRef.mimeType(),
-                periodResult.getQuestion(),
-                session.getInterviewerType(),
-                session.getCoverLetter()
-        );
-        PeriodFeedback parsedFeedback = geminiService.parsePeriodFeedback(feedbackJson);
+        // 피드백 생성 + 꼬리질문 생성 병렬 실행
+        CompletableFuture<String> feedbackFuture = CompletableFuture.supplyAsync(() ->
+                geminiService.generatePeriodFeedback(
+                        fileRef.uri(),
+                        fileRef.mimeType(),
+                        periodResult.getQuestion(),
+                        session.getInterviewerType(),
+                        session.getCoverLetter()
+                ), geminiExecutor);
 
-        // 꼬리질문 5개 미리 생성 (getNextOptions에서 재활용)
-        List<String> followUpQuestions = geminiService.generateFollowUpQuestions(
-                fileRef.uri(), fileRef.mimeType(), periodResult.getQuestion());
+        CompletableFuture<List<String>> followUpFuture = CompletableFuture.supplyAsync(() ->
+                geminiService.generateFollowUpQuestions(
+                        fileRef.uri(), fileRef.mimeType(), periodResult.getQuestion()
+                ), geminiExecutor);
+
+        String feedbackJson = feedbackFuture.join();
+        List<String> followUpQuestions = followUpFuture.join();
+        PeriodFeedback parsedFeedback = geminiService.parsePeriodFeedback(feedbackJson);
 
         // PeriodResult 업데이트
         periodResult.setFeedbackJson(feedbackJson);
