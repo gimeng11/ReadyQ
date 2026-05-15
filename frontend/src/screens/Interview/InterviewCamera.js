@@ -228,6 +228,13 @@ export default function InterviewCamera({ navigation, route }) {
             <CustomText weight="bold" style={styles.guideTime}>
               {timeLeft}
             </CustomText>
+
+            <TouchableOpacity
+              style={localStyles.startNowButton}
+              onPress={() => setPhase('question')}
+            >
+              <CustomText weight="bold" style={localStyles.startNowText}>바로시작</CustomText>
+            </TouchableOpacity>
           </View>
         </>
       )}
@@ -423,6 +430,18 @@ const localStyles = StyleSheet.create({
     marginBottom: 8,
   },
   randomBtnText: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  startNowButton: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
+    alignSelf: 'center',
+  },
+  startNowText: {
     color: '#fff',
     fontSize: 14,
   },
