@@ -372,13 +372,17 @@ public class GeminiInterviewService {
         String prompt = String.format(
                 "다음은 면접 전체 교시별 피드백 JSON 목록입니다. 이를 종합하여 최종 피드백을 생성해주세요.\n\n" +
                 "교시별 피드백:\n[%s]\n\n" +
+                "작성 규칙:\n" +
+                "- 모든 텍스트는 '요'체로 작성하세요 (예: ~해요, ~이에요, ~있어요, ~세요).\n" +
+                "- strongPoints와 improvementPoints 각 항목은 30자 이내로 간결하게 작성하세요.\n" +
+                "- overallSummary는 100자 이내로 작성하세요.\n\n" +
                 "preamble 없이 순수 JSON만 반환하세요 (마크다운 코드블록 없이):\n" +
                 "{\n" +
                 "  \"totalScore\": 종합점수,\n" +
                 "  \"periodScores\": [교시1점수, 교시2점수, ...],\n" +
                 "  \"strongPoints\": [\"강점1\", \"강점2\", \"강점3\"],\n" +
                 "  \"improvementPoints\": [\"개선점1\", \"개선점2\", \"개선점3\"],\n" +
-                "  \"overallSummary\": \"전체 요약 한 문단\"\n" +
+                "  \"overallSummary\": \"전체 요약\"\n" +
                 "}",
                 feedbackList);
 

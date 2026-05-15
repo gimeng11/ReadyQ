@@ -21,7 +21,8 @@
       "Bash(Select-Object Name)",
       "PowerShell(ls \"C:\\\\프로젝트\\\\ReadyQ\" | Where-Object { $_.PSIsContainer })",
       "PowerShell(head *)",
-      "PowerShell(ls \"C:\\\\프로젝트\\\\ReadyQ\" -Recurse | Where-Object { -not $_.PSIsContainer } | Select-Object -First 50 FullName)"
+      "PowerShell(ls \"C:\\\\프로젝트\\\\ReadyQ\" -Recurse | Where-Object { -not $_.PSIsContainer } | Select-Object -First 50 FullName)",
+      "Bash(Select-Object Name, PSIsContainer)"
     ]
   }
 }

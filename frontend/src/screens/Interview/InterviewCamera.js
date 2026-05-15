@@ -19,7 +19,7 @@ export default function InterviewCamera({ navigation, route }) {
   const [hasPermission, setHasPermission] = useState(null)
 
   // 면접 흐름
-  // guide → question → submitting → break → (selectFollowUp) → question (반복)
+  // guide → question → submitting → break → guide (반복)
   const [phase, setPhase] = useState('guide')
   const [periodNum, setPeriodNum] = useState(initialPeriodNum)
   const [question, setQuestion] = useState(initialQuestion)
@@ -143,12 +143,7 @@ export default function InterviewCamera({ navigation, route }) {
     }
   }
 
-  // 꼬리 질문 목록 표시
-  const handleShowFollowUp = () => {
-    setPhase('selectFollowUp')
-  }
-
-  // 꼬리 질문 선택 → 다음 교시
+  // 질문 선택 → 다음 교시
   const handleSelectFollowUp = async (selectedQuestion) => {
     setLoading(true)
     try {
@@ -169,25 +164,12 @@ export default function InterviewCamera({ navigation, route }) {
     }
   }
 
-  // 새 질문 → 다음 교시
-  const handleNewQuestion = async () => {
-    setLoading(true)
-    try {
-      const res = await proceedToNextPeriod(sessionId, periodNum, 'NEW_QUESTION')
-      setPeriodNum(res.periodNum)
-      setQuestion(res.question)
-      setOptions(null)
-      setBreakData(null)
-      setVideoUri(null)
-      setRecordingTimeLeft(null)
-      setTimeLeft(30)
-      setPhase('guide')
-    } catch (e) {
-      Alert.alert('오류', e.message)
-      setPhase('break')
-    } finally {
-      setLoading(false)
-    }
+  // 랜덤 질문 선택
+  const handleRandomQuestion = () => {
+    const questions = options?.followUpQuestions ?? []
+    if (questions.length === 0) return
+    const randomQ = questions[Math.floor(Math.random() * questions.length)]
+    handleSelectFollowUp(randomQ)
   }
 
   // 면접 종료 → 최종 피드백 생성
@@ -276,84 +258,51 @@ export default function InterviewCamera({ navigation, route }) {
 
       {/* 쉬는시간 */}
       {phase === 'break' && (
-        <View style={styles.breakBox}>
+        <View style={localStyles.breakOverlay}>
           <CustomText weight="bold" style={styles.breakText}>
             {periodNum}교시 완료!
           </CustomText>
-
-          {breakData?.periodFeedbackSummary && (
-            <View style={localStyles.summaryBox}>
-              <CustomText weight="bold" style={localStyles.summaryScore}>
-                이번 교시 점수: {breakData.periodFeedbackSummary.overallScore}점
-              </CustomText>
-              <CustomText style={localStyles.summaryFeedback}>
-                {breakData.periodFeedbackSummary.summaryFeedback}
-              </CustomText>
-            </View>
-          )}
 
           {loading ? (
             <ActivityIndicator color="#3281FF" style={{ marginTop: 16 }} />
           ) : (
             <>
-              {options?.followUpQuestions?.length > 0 && (
-                <TouchableOpacity
-                  style={[styles.breakButton, styles.breakPrimary]}
-                  onPress={handleShowFollowUp}
-                >
-                  <CustomText weight="bold" style={styles.breakBtnText}>꼬리 질문</CustomText>
-                </TouchableOpacity>
-              )}
+              <CustomText weight="semibold" style={localStyles.questionPickTitle}>
+                다음 질문을 선택하세요
+              </CustomText>
 
-              {options?.newQuestionAvailable && (
-                <TouchableOpacity
-                  style={[styles.breakButton, styles.breakPrimary]}
-                  onPress={handleNewQuestion}
-                >
-                  <CustomText weight="bold" style={styles.breakBtnText}>새 질문</CustomText>
-                </TouchableOpacity>
-              )}
+              <ScrollView style={localStyles.questionPickList} showsVerticalScrollIndicator={false}>
+                {options?.followUpQuestions?.map((q, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={localStyles.questionPickItem}
+                    onPress={() => handleSelectFollowUp(q)}
+                    disabled={loading}
+                  >
+                    <CustomText weight="semibold" style={localStyles.questionPickText}>
+                      {idx + 1}. {q}
+                    </CustomText>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <TouchableOpacity
+                style={[styles.breakButton, localStyles.randomButton]}
+                onPress={handleRandomQuestion}
+                disabled={loading}
+              >
+                <CustomText weight="bold" style={localStyles.randomBtnText}>랜덤 선택</CustomText>
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.breakButton, styles.breakDanger]}
                 onPress={handleEndInterview}
+                disabled={loading}
               >
                 <CustomText weight="bold" style={styles.breakBtndangerText}>면접 종료</CustomText>
               </TouchableOpacity>
             </>
           )}
-        </View>
-      )}
-
-      {/* 꼬리 질문 선택 */}
-      {phase === 'selectFollowUp' && (
-        <View style={localStyles.followUpOverlay}>
-          <CustomText weight="bold" style={localStyles.followUpTitle}>
-            꼬리 질문을 선택하세요
-          </CustomText>
-
-          <ScrollView style={localStyles.followUpList}>
-            {options?.followUpQuestions?.map((q, idx) => (
-              <TouchableOpacity
-                key={idx}
-                style={localStyles.followUpItem}
-                onPress={() => handleSelectFollowUp(q)}
-                disabled={loading}
-              >
-                <CustomText weight="semibold" style={localStyles.followUpText}>
-                  {idx + 1}. {q}
-                </CustomText>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          <TouchableOpacity
-            style={localStyles.followUpBack}
-            onPress={() => setPhase('break')}
-            disabled={loading}
-          >
-            <CustomText style={localStyles.followUpBackText}>← 돌아가기</CustomText>
-          </TouchableOpacity>
         </View>
       )}
 
@@ -438,56 +387,43 @@ const localStyles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
   },
-  summaryBox: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+  breakOverlay: {
+    position: 'absolute',
+    bottom: 30,
+    top: 80,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.82)',
+    borderRadius: 16,
+    padding: 20,
+  },
+  questionPickTitle: {
+    color: '#ccc',
+    fontSize: 14,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  questionPickList: {
+    flex: 1,
+    marginBottom: 10,
+  },
+  questionPickItem: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: 10,
     padding: 14,
-    marginVertical: 12,
-    width: '100%',
+    marginBottom: 8,
   },
-  summaryScore: {
+  questionPickText: {
     color: '#fff',
-    fontSize: 16,
-    marginBottom: 6,
-  },
-  summaryFeedback: {
-    color: '#eee',
     fontSize: 13,
     lineHeight: 20,
   },
-  followUpOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.88)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+  randomButton: {
+    backgroundColor: '#3281FF',
+    marginBottom: 8,
   },
-  followUpTitle: {
+  randomBtnText: {
     color: '#fff',
-    fontSize: 18,
-    marginBottom: 20,
-  },
-  followUpList: {
-    width: '100%',
-    maxHeight: 360,
-  },
-  followUpItem: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 10,
-  },
-  followUpText: {
-    color: '#fff',
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  followUpBack: {
-    marginTop: 16,
-    padding: 10,
-  },
-  followUpBackText: {
-    color: '#aaa',
     fontSize: 14,
   },
 })
