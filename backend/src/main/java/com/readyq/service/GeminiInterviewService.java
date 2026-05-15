@@ -50,6 +50,7 @@ public class GeminiInterviewService {
         try {
             String mimeType = video.getContentType() != null ? video.getContentType() : "video/mp4";
             byte[] fileBytes = video.getBytes();
+            log.info("[TIMING] 업로드 대상 파일 크기: {}KB", fileBytes.length / 1024);
 
             String boundary = "interview_boundary_" + System.currentTimeMillis();
 
@@ -76,6 +77,7 @@ public class GeminiInterviewService {
             System.arraycopy(fileBytes,     0, body, pos, fileBytes.length);     pos += fileBytes.length;
             System.arraycopy(endingBytes,   0, body, pos, endingBytes.length);
 
+            long tUpload = System.currentTimeMillis();
             String responseJson = webClient.post()
                     .uri(GEMINI_UPLOAD_URL + "?key=" + apiKey)
                     .header("X-Goog-Upload-Protocol", "multipart")
@@ -84,13 +86,16 @@ public class GeminiInterviewService {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
+            log.info("[TIMING] Gemini HTTP 업로드: {}ms", System.currentTimeMillis() - tUpload);
 
             JsonNode root = objectMapper.readTree(responseJson);
             String fileUri = root.path("file").path("uri").asText();
             String fileName = root.path("file").path("name").asText();
 
             // 영상 처리 완료까지 대기
+            long tActive = System.currentTimeMillis();
             waitForFileActive(fileName);
+            log.info("[TIMING] Gemini ACTIVE 대기: {}ms", System.currentTimeMillis() - tActive);
             return new GeminiFileRef(fileUri, mimeType);
 
         } catch (Exception e) {
@@ -103,7 +108,7 @@ public class GeminiInterviewService {
      * 파일 상태가 ACTIVE가 될 때까지 최대 30초간 폴링한다.
      */
     private void waitForFileActive(String fileName) {
-        for (int i = 0; i < 15; i++) {
+        for (int i = 0; i < 30; i++) {
             try {
                 String resp = webClient.get()
                         .uri(GEMINI_BASE_URL + "/" + fileName + "?key=" + apiKey)
@@ -111,6 +116,7 @@ public class GeminiInterviewService {
                         .bodyToMono(String.class)
                         .block();
                 if (resp != null && resp.contains("\"state\":\"ACTIVE\"")) {
+                    log.info("[TIMING] ACTIVE 확인 완료 ({}번째 폴링)", i + 1);
                     return;
                 }
                 Thread.sleep(2000);
@@ -196,73 +202,48 @@ public class GeminiInterviewService {
                 "%s\n\n" +
                 "질문: %s\n" +
                 "지원자 자기소개서: %s\n\n" +
-                "위 영상에서 지원자의 답변을 분석하여 다음 항목을 0~100점으로 평가하고, " +
-                "preamble 없이 순수 JSON만 반환하세요.\n\n" +
-
-                "=== 항목별 평가 기준 ===\n\n" +
+                "위 영상에서 지원자의 답변을 분석하여 다음 항목을 0~100점으로 평가하세요.\n\n" +
 
                 "[speechSpeed - 말하기 속도]\n" +
-                "영상에서 발화 속도를 SPM(분당 음절 수)으로 추정하여 평가하세요.\n" +
-                "- 이상적 면접 범위: 265 ~ 350 SPM (한국 성인 평균 265SPM, 아나운서 기준 350SPM)\n" +
-                "- 정상 허용 범위: 250 ~ 410 SPM\n" +
-                "- 250 SPM 미만: '너무 느림' → 감점\n" +
-                "- 410 SPM 초과: '너무 빠름' → 감점\n" +
-                "출처: 신문자(2003), 김국환(2021)\n\n" +
+                "발화 속도를 SPM(분당 음절 수)으로 추정하여 평가하세요.\n" +
+                "- 이상적: 265~350 SPM / 허용: 250~410 SPM\n" +
+                "- 250 미만: 너무 느림 / 410 초과: 너무 빠름 → 감점\n\n" +
 
                 "[fillerWords - 추임새/말더듬]\n" +
-                "'음', '어', '그', '저' 등 불필요한 추임새 및 말더듬 횟수를 영상 길이 기준으로 평가하세요.\n" +
-                "- 1분 이상 영상: 분당 5회 이하 → 양호 / 6~11회 → 주의 / 12회 이상 → 감점\n" +
-                "- 1분 미만 영상: 5초당 1회 이상이면 감점\n" +
-                "출처: Laske et al. (2024) Journal of Applied Behavior Analysis\n\n" +
+                "'음', '어', '그', '저' 등 추임새·말더듬 횟수를 평가하세요.\n" +
+                "- 1분 이상: 분당 5회 이하 양호 / 6~11회 주의 / 12회 이상 감점\n" +
+                "- 1분 미만: 5초당 1회 이상 감점\n\n" +
 
                 "[eyeContact - 비언어적 태도]\n" +
-                "눈맞춤, 미소, 고개끄덕임 여부를 주요 기준으로 평가하세요.\n" +
-                "한국 면접관 중요도 순서: 말하고듣는태도(63.5%%) > 얼굴표정(49.1%%) > 시선처리(41.3%%) > 자세(37.6%%)\n" +
-                "눈맞춤·미소·고개끄덕임 사용 시 면접관 평가 유의미하게 상승 (사용 3.94/5점 vs 미사용 2.78/5점, p<.001)\n" +
-                "출처: 박소현·유태용(2014), 엔터웨이파트너스 설문\n\n" +
+                "눈맞춤·미소·고개끄덕임·자세를 평가하세요.\n" +
+                "중요도 순서: 말하고듣는태도 > 얼굴표정 > 시선처리 > 자세\n\n" +
 
                 "[voiceVolume - 목소리 전달력]\n" +
-                "억양 변화폭, 음도(기본주파수), 강도(dB)를 종합하여 평가하세요.\n" +
-                "- 남성 기준: 억양변화 90Hz 이상, 음도 111~130Hz, 강도 67~72dB → 호감\n" +
-                "  (103.1Hz 억양이 호감 1위, 70.5Hz는 비호감 1위 / 108Hz 이하 음도는 낮음)\n" +
-                "- 여성 기준: 억양변화 121Hz 이상, 음도 231~250Hz, 강도 67~72dB → 호감\n" +
-                "  (136.4Hz 억양이 호감 1위 / 200Hz 이하 음도는 낮음)\n" +
-                "- 강도 55~60dB 이하: 약함 → 감점\n" +
-                "- 단조로운 억양(변화 없음)은 비호감의 핵심 원인으로 감점\n" +
-                "출처: 아나운서 연구(남 158.8Hz, 여 250.7Hz 참고)\n\n" +
+                "억양 변화폭·음도·강도를 종합 평가하세요.\n" +
+                "- 남성: 억양변화 90Hz 이상, 음도 111~130Hz, 강도 67~72dB\n" +
+                "- 여성: 억양변화 121Hz 이상, 음도 231~250Hz, 강도 67~72dB\n" +
+                "- 강도 55dB 이하 또는 단조로운 억양 → 감점\n\n" +
 
                 "[logicStructure - 논리구조력]\n" +
-                "답변의 주장-근거-사례 구조가 갖춰졌는지, 결론 도출에 비약이 없는지 평가하세요.\n\n" +
+                "주장-근거-사례 구조 및 결론 비약 여부를 평가하세요.\n\n" +
 
                 "[answerClarity - 답변명확성]\n" +
-                "질문 의도에 정확히 답했는지, 핵심 메시지가 명확히 전달되었는지 평가하세요.\n\n" +
+                "질문 의도 적합성 및 핵심 메시지 전달력을 평가하세요.\n\n" +
 
-                "=== 반환 형식 (JSON만, 마크다운 코드블록 없이) ===\n" +
+                "preamble 없이 순수 JSON만 반환 (마크다운 코드블록 없이):\n" +
                 "{\n" +
-                "  \"scores\": {\n" +
-                "    \"logicStructure\": 점수,\n" +
-                "    \"speechSpeed\": 점수,\n" +
-                "    \"voiceVolume\": 점수,\n" +
-                "    \"eyeContact\": 점수,\n" +
-                "    \"fillerWords\": 점수,\n" +
-                "    \"answerClarity\": 점수\n" +
-                "  },\n" +
+                "  \"scores\": {\"logicStructure\":점수,\"speechSpeed\":점수,\"voiceVolume\":점수,\"eyeContact\":점수,\"fillerWords\":점수,\"answerClarity\":점수},\n" +
                 "  \"overallScore\": 종합점수,\n" +
                 "  \"summaryFeedback\": \"한 문장 요약\",\n" +
-                "  \"detailFeedback\": {\n" +
-                "    \"logicStructure\": \"상세 피드백\",\n" +
-                "    \"speechSpeed\": \"추정 SPM 수치와 함께 상세 피드백\",\n" +
-                "    \"voiceVolume\": \"억양·음도·강도 기준 수치와 함께 상세 피드백\",\n" +
-                "    \"eyeContact\": \"눈맞춤·표정·자세 관찰 내용 상세 피드백\",\n" +
-                "    \"fillerWords\": \"추임새 횟수 추정과 함께 상세 피드백\",\n" +
-                "    \"answerClarity\": \"상세 피드백\"\n" +
-                "  },\n" +
-                "  \"improvementTips\": [\"팁1\", \"팁2\", \"팁3\"]\n" +
+                "  \"detailFeedback\": {\"logicStructure\":\"피드백\",\"speechSpeed\":\"SPM 수치 포함\",\"voiceVolume\":\"수치 포함\",\"eyeContact\":\"피드백\",\"fillerWords\":\"횟수 포함\",\"answerClarity\":\"피드백\"},\n" +
+                "  \"improvementTips\": [\"팁1\",\"팁2\",\"팁3\"]\n" +
                 "}",
                 interviewerDescription, question, coverLetter);
 
         try {
+            long t = System.currentTimeMillis();
             String raw = callGeminiWithVideo(fileUri, mimeType, prompt);
+            log.info("[TIMING] generatePeriodFeedback Gemini 호출: {}ms", System.currentTimeMillis() - t);
             return extractJson(raw);
         } catch (Exception e) {
             log.warn("Gemini 피드백 생성 실패 — 기본 피드백 사용: {}", e.getMessage());
@@ -290,7 +271,9 @@ public class GeminiInterviewService {
 
         String raw;
         try {
+            long t = System.currentTimeMillis();
             raw = callGeminiWithVideo(fileUri, mimeType, prompt);
+            log.info("[TIMING] generateFollowUpQuestions Gemini 호출: {}ms", System.currentTimeMillis() - t);
         } catch (Exception e) {
             log.warn("꼬리질문 Gemini 호출 실패 — 기본 질문 반환: {}", e.getMessage());
             return List.of("이전 답변에서 더 자세히 설명해 주실 수 있나요?",

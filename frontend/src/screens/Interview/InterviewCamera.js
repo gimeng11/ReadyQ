@@ -104,7 +104,7 @@ export default function InterviewCamera({ navigation, route }) {
     if (!cameraRef.current) return
     try {
       setVideoUri(null)
-      const result = await cameraRef.current.recordAsync({ maxDuration: 90, videoQuality: '480p' })
+      const result = await cameraRef.current.recordAsync({ maxDuration: 90, videoQuality: 'low' })
       setVideoUri(result.uri)
     } catch (e) {
       console.log('[Camera] 녹화 오류:', e.message)

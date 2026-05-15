@@ -96,18 +96,25 @@ public class InterviewService {
 
         PeriodResult periodResult = getPeriodResult(session, periodNum);
 
+        long tTotal = System.currentTimeMillis();
+
         // 영상 로컬 저장
+        long t0 = System.currentTimeMillis();
         String videoPath = saveVideoLocally(video, userId, sessionId, periodNum);
         periodResult.setVideoPath(videoPath);
+        log.info("[TIMING] {}교시 영상 로컬 저장: {}ms", periodNum, System.currentTimeMillis() - t0);
 
         // Gemini File API에 영상 업로드
+        long t1 = System.currentTimeMillis();
         GeminiInterviewService.GeminiFileRef fileRef = geminiService.uploadVideoToGemini(video);
+        log.info("[TIMING] {}교시 Gemini 업로드+ACTIVE 대기: {}ms", periodNum, System.currentTimeMillis() - t1);
 
         // Gemini URI 저장 (이후 교시 질문 생성에 재활용)
         periodResult.setGeminiFileUri(fileRef.uri());
         periodResult.setGeminiMimeType(fileRef.mimeType());
 
         // 피드백 생성 + 꼬리질문 생성 병렬 실행
+        long t2 = System.currentTimeMillis();
         CompletableFuture<String> feedbackFuture = CompletableFuture.supplyAsync(() ->
                 geminiService.generatePeriodFeedback(
                         fileRef.uri(),
@@ -124,6 +131,9 @@ public class InterviewService {
 
         String feedbackJson = feedbackFuture.join();
         List<String> followUpQuestions = followUpFuture.join();
+        log.info("[TIMING] {}교시 피드백+꼬리질문 병렬 생성: {}ms", periodNum, System.currentTimeMillis() - t2);
+        log.info("[TIMING] {}교시 submitPeriodAnswer 전체: {}ms", periodNum, System.currentTimeMillis() - tTotal);
+
         PeriodFeedback parsedFeedback = geminiService.parsePeriodFeedback(feedbackJson);
 
         // PeriodResult 업데이트

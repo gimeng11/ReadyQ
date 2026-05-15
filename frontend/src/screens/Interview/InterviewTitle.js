@@ -21,7 +21,7 @@ export default function InterviewTitle({ navigation, route }) {
   const [coverLetter, setCoverLetter] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const isReady = targetCompany.trim() && targetJob.trim() && coverLetter.trim()
+  const isReady = targetCompany.trim() && targetJob.trim()
 
   const handleStart = async () => {
     if (!isReady) return
