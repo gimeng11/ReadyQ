@@ -98,4 +98,15 @@ public class BoardService {
         boardRepository.delete(board);
     }
 
+    //좋아요
+    public boolean toggleLike(String boardId, String username) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new IllegalArgumentException("게시글이 존재하지 않습니다."));
+
+        boolean isLiked = board.toggleLike(username);
+        boardRepository.save(board);
+
+        return isLiked;
+    }
+
 }

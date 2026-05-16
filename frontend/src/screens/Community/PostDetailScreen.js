@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,17 +10,111 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { usePosts } from '../../context/PostContext';
+import { BASE_URL } from '../../api/client';
+import { getToken } from '../../utils/storage';
 
 export default function PostDetailScreen({ navigation, route }) {
   const item = route.params?.item;
   const { toggleScrap, isScrapped } = usePosts();
   const [comment, setComment] = useState('');
   const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(item.likes || 0);
+  const [commentsList, setCommentsList] = useState([]);
+
+  //좋아요
+  const handleLike = async () => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        Alert.alert('알림', '로그인이 필요한 서비스입니다.');
+        return;
+      }
+
+      const response = await fetch(`${BASE_URL}/api/boards/${item.id}/likes`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        // true = 좋아요 추가됨, false = 좋아요 취소됨
+        const isLikedNow = await response.json();
+
+        if (isLikedNow) {
+          setLiked(true);
+          setLikesCount(prev => prev + 1);
+        } else {
+          setLiked(false);
+          setLikesCount(prev => prev - 1);
+        }
+      } else {
+        Alert.alert('오류', '좋아요 처리에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('[API 에러] 좋아요 실패:', error);
+    }
+  };
+
+
+  const fetchComments = async () => {
+    if (!item || !item.id) return;
+    if (item.id.toString().includes('dummy')) return;
+
+    try {
+      const response = await fetch(`${BASE_URL}/api/boards/${item.id}/comments`);
+      if (response.ok) {
+        const data = await response.json();
+        setCommentsList(data); // DB에서 가져온 댓글 목록 저장
+      }
+    } catch (error) {
+      console.error('[API 에러] 댓글 불러오기 실패:', error);
+    }
+  };
+
+  // 화면이 처음 켜질 때 댓글 목록 불러오기
+  useEffect(() => {
+    fetchComments();
+  }, [item]);
+
+  // 댓글 작성
+  const handleSubmitComment = async () => {
+    if (!comment.trim()) return;
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        Alert.alert('알림', '로그인이 필요한 서비스입니다.');
+        return;
+      }
+
+      const response = await fetch(`${BASE_URL}/api/boards/${item.id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          content: comment.trim(),
+          isAnonymous: false, // 일단 실명으로 고정
+        }),
+      });
+
+      if (response.ok) {
+        setComment('');
+        fetchComments();
+      } else {
+        Alert.alert('오류', '댓글 작성에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('[API 에러] 댓글 작성 실패:', error);
+    }
+  };
 
   if (!item) return null;
-
   const scrapped = isScrapped(item.id);
 
   return (
@@ -75,16 +169,16 @@ export default function PostDetailScreen({ navigation, route }) {
             <View style={styles.actionRow}>
               <TouchableOpacity
                 style={styles.actionBtn}
-                onPress={() => setLiked(!liked)}
+                onPress={handleLike}
               >
                 <Text style={[styles.actionIcon, liked && { color: '#3281FF' }]}>♥</Text>
                 <Text style={[styles.actionCount, liked && { color: '#3281FF' }]}>
-                  {liked ? item.likes + 1 : item.likes}
+                  {likesCount}
                 </Text>
               </TouchableOpacity>
               <View style={styles.actionBtn}>
                 <Text style={styles.actionIcon}>💬</Text>
-                <Text style={styles.actionCount}>{item.comments}</Text>
+                <Text style={styles.actionCount}>{commentsList.length || item.comments || 0}</Text>
               </View>
             </View>
           </View>
@@ -93,22 +187,29 @@ export default function PostDetailScreen({ navigation, route }) {
 
           {/* 댓글 목록 */}
           <View style={styles.commentSection}>
-            <Text style={styles.commentHeader}>댓글 {item.comments}</Text>
-            {[...Array(item.comments)].map((_, i) => (
-              <View key={i} style={styles.commentItem}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>유</Text>
-                </View>
-                <View style={styles.commentContent}>
-                  <View style={styles.commentTop}>
-                    <Text style={styles.commentAuthor}>유저{i + 1}</Text>
-                    <Text style={styles.commentDate}>02.03</Text>
+            <Text style={styles.commentHeader}>댓글 {commentsList.length}</Text>
+
+            {commentsList.map((c, i) => (
+                <View key={c.id || i} style={styles.commentItem}>
+
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>
+                      {c.author ? c.author.substring(0, 1) : '유'}
+                    </Text>
                   </View>
-                  <Text style={styles.commentText}>
-                    {i === 0 ? '좋은 정보 감사합니다!' : '도움이 많이 됐어요 :)'}
-                  </Text>
+
+                  <View style={styles.commentContent}>
+                    <View style={styles.commentTop}>
+                      <Text style={styles.commentAuthor}>{c.author || `유저${i + 1}`}</Text>
+                      <Text style={styles.commentDate}>{c.date || '방금 전'}</Text>
+                    </View>
+
+                    <Text style={styles.commentText}>
+                      {c.content}
+                    </Text>
+                  </View>
+
                 </View>
-              </View>
             ))}
           </View>
         </ScrollView>
@@ -125,6 +226,7 @@ export default function PostDetailScreen({ navigation, route }) {
           <TouchableOpacity
             style={[styles.sendBtn, !comment.trim() && { opacity: 0.4 }]}
             disabled={!comment.trim()}
+            onPress={handleSubmitComment}
           >
             <Text style={styles.sendBtnText}>전송</Text>
           </TouchableOpacity>

@@ -10,15 +10,15 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { usePosts } from '../../context/PostContext';
+import { getToken } from '../../utils/storage';
+import { BASE_URL } from '../../api/client';
 
 export default function PostWriteScreen({ navigation, route }) {
   const { category } = route.params;
-  const { addPost } = usePosts();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim()) {
       Alert.alert('알림', '제목을 입력해주세요.');
       return;
@@ -28,26 +28,53 @@ export default function PostWriteScreen({ navigation, route }) {
       return;
     }
 
-    const today = new Date();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
+    try {
+      const token = await getToken();
 
-    addPost({
-      id: Date.now().toString(),
-      tag: category,
-      title: title.trim(),
-      preview: content.trim().slice(0, 40) + (content.length > 40 ? '...' : ''),
-      category: 'UXUI',
-      date: `${month}.${day}`,
-      views: 0,
-      likes: 0,
-      comments: 0,
-      content: content.trim(),
-    });
+      console.log('현재 내 토큰:', token);
+      //토큰 없을 시 예외
+      if (!token) {
+        Alert.alert('알림', '로그인이 필요한 서비스입니다.');
+        return;
+      }
 
-    navigation.navigate('Community');
+      const response = await fetch(`${BASE_URL}/api/boards`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          boardType: category,
+          category: 'UXUI',
+          title: title.trim(),
+          content: content.trim(),
+          isAnonymous: false
+        })
+      });
+
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        const data = await response.json();
+        console.log('서버 응답:', data);
+      } else {
+        const text = await response.text();
+        console.log('서버에서 HTML이나 텍스트를 줬음', text);
+        throw new Error('서버에서 JSON이 아닌 데이터를 반환.');
+      }
+
+      if (!response.ok) {
+        throw new Error('서버 응답 에러');
+      }
+
+      Alert.alert('성공', '게시글이 등록되었습니다!');
+      navigation.navigate('Community');
+
+    } catch (error) {
+      console.error('[API 에러] 글쓰기 실패:', error);
+      Alert.alert('오류', '게시글 작성에 실패했습니다.');
+    }
   };
-
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView

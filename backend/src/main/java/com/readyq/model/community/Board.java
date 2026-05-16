@@ -6,6 +6,8 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
+import java.util.HashSet;
+import java.util.Set;
 
 import java.time.LocalDateTime;
 
@@ -30,6 +32,7 @@ public class Board {
     @Builder.Default private int views = 0;
     @Builder.Default private int likes = 0;
     @Builder.Default private int commentCount = 0;
+    @Builder.Default private Set<String> likedUsers = new HashSet<>();
 
     @CreatedDate
     private LocalDateTime createdAt;
@@ -55,6 +58,24 @@ public class Board {
     public void decreaseCommentCount() {
         if (this.commentCount > 0) {
             this.commentCount--;
+        }
+    }
+    //좋아요
+    public boolean toggleLike(String username) {
+        if (this.likedUsers == null) {
+            this.likedUsers = new HashSet<>();
+        }
+
+        // 이미 누른 사람인지 확인
+        if (this.likedUsers.contains(username)) {
+            // 이미 눌렀다면 바구니에서 제거
+            this.likedUsers.remove(username);
+            this.likes = this.likedUsers.size();
+            return false;
+        } else {
+            this.likedUsers.add(username);
+            this.likes = this.likedUsers.size();
+            return true;
         }
     }
 }

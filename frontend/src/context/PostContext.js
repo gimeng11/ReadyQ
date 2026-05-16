@@ -10,7 +10,7 @@ const DUMMY_POSTS = [
     date: '02.03',
     views: 760,
     likes: 12,
-    comments: 5,
+    comments: 0,
     content: '안녕하세요. 얼마전에 대기업에 합격했는데요, 많은분들이 도움이 되셨으면 해서 글을 올립니다.',
   },
   {
@@ -22,7 +22,7 @@ const DUMMY_POSTS = [
     date: '02.03',
     views: 760,
     likes: 12,
-    comments: 5,
+    comments: 0,
     content: '어떤옷을 입어야할지 모르겠어요. 도와주세요!!',
   },
   {
@@ -34,7 +34,7 @@ const DUMMY_POSTS = [
     date: '02.03',
     views: 760,
     likes: 12,
-    comments: 5,
+    comments: 0,
     content: '안녕하세요. 얼마전에 대기업에 합격했는데요, 많은분들이 도움이 되셨으면 해서 글을 올립니다.',
   },
   {
@@ -46,7 +46,7 @@ const DUMMY_POSTS = [
     date: '02.03',
     views: 760,
     likes: 12,
-    comments: 5,
+    comments: 0,
     content: '안녕하세요. 이제 합격까지 면접만 남았는데, 면접이 너무 떨려요.',
   },
 ];

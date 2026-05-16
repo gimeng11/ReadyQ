@@ -54,4 +54,16 @@ public class BoardController {
         boardService.deleteBoard(id, username);
         return ResponseEntity.ok("게시글이 성공적으로 삭제되었습니다.");
     }
+
+    //좋아요
+    @PostMapping("/{id}/likes")
+    public ResponseEntity<Boolean> toggleLike(
+            @PathVariable String id,
+            Authentication authentication) {
+
+        String username = authentication.getName();
+        boolean isLiked = boardService.toggleLike(id, username);
+
+        return ResponseEntity.ok(isLiked);
+    }
 }
