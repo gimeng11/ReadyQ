@@ -12,6 +12,7 @@ const DUMMY_POSTS = [
     likes: 12,
     comments: 5,
     content: '안녕하세요. 얼마전에 대기업에 합격했는데요, 많은분들이 도움이 되셨으면 해서 글을 올립니다.',
+    isMyPost: false,
   },
   {
     id: '2',
@@ -24,6 +25,7 @@ const DUMMY_POSTS = [
     likes: 12,
     comments: 5,
     content: '어떤옷을 입어야할지 모르겠어요. 도와주세요!!',
+    isMyPost: false,
   },
   {
     id: '3',
@@ -36,6 +38,7 @@ const DUMMY_POSTS = [
     likes: 12,
     comments: 5,
     content: '안녕하세요. 얼마전에 대기업에 합격했는데요, 많은분들이 도움이 되셨으면 해서 글을 올립니다.',
+    isMyPost: false,
   },
   {
     id: '4',
@@ -48,18 +51,102 @@ const DUMMY_POSTS = [
     likes: 12,
     comments: 5,
     content: '안녕하세요. 이제 합격까지 면접만 남았는데, 면접이 너무 떨려요.',
+    isMyPost: false,
   },
 ];
+
+const DUMMY_COMMENTS = {
+  '1': [
+    { id: 'c1', postId: '1', author: '유저1', text: '좋은 정보 감사합니다!', date: '02.03', isMyComment: false },
+    { id: 'c2', postId: '1', author: '유저2', text: '도움이 많이 됐어요 :)', date: '02.03', isMyComment: false },
+  ],
+  '2': [
+    { id: 'c3', postId: '2', author: '유저3', text: '면접복장은 깔끔하게 입으시면 돼요!', date: '02.03', isMyComment: false },
+  ],
+  '3': [],
+  '4': [
+    { id: 'c4', postId: '4', author: '유저4', text: '저도 같이 하고싶어요!', date: '02.03', isMyComment: false },
+  ],
+};
 
 const PostContext = createContext();
 
 export function PostProvider({ children }) {
   const [posts, setPosts] = useState(DUMMY_POSTS);
+  const [comments, setComments] = useState(DUMMY_COMMENTS);
   const [scrappedIds, setScrappedIds] = useState([]);
 
   const addPost = (newPost) => {
-    setPosts((prev) => [newPost, ...prev]);
+    setPosts((prev) => [{ ...newPost, isMyPost: true }, ...prev]);
+    setComments((prev) => ({ ...prev, [newPost.id]: [] }));
   };
+
+  const deletePost = (id) => {
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+    setScrappedIds((prev) => prev.filter((sid) => sid !== id));
+    setComments((prev) => {
+      const updated = { ...prev };
+      delete updated[id];
+      return updated;
+    });
+  };
+
+  const updatePost = (id, updated) => {
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              ...updated,
+              preview: updated.content?.slice(0, 40) + (updated.content?.length > 40 ? '...' : '') || p.preview,
+            }
+          : p
+      )
+    );
+  };
+
+  const addComment = (postId, text) => {
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+
+    const newComment = {
+      id: Date.now().toString(),
+      postId,
+      author: '나',
+      text,
+      date: `${month}.${day}`,
+      isMyComment: true,
+    };
+
+    setComments((prev) => ({
+      ...prev,
+      [postId]: [...(prev[postId] || []), newComment],
+    }));
+
+    // 댓글 수 증가
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId ? { ...p, comments: (p.comments || 0) + 1 } : p
+      )
+    );
+  };
+
+  const deleteComment = (postId, commentId) => {
+    setComments((prev) => ({
+      ...prev,
+      [postId]: prev[postId].filter((c) => c.id !== commentId),
+    }));
+
+    // 댓글 수 감소
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId ? { ...p, comments: Math.max((p.comments || 0) - 1, 0) } : p
+      )
+    );
+  };
+
+  const getComments = (postId) => comments[postId] || [];
 
   const toggleScrap = (id) => {
     setScrappedIds((prev) =>
@@ -68,11 +155,14 @@ export function PostProvider({ children }) {
   };
 
   const isScrapped = (id) => scrappedIds.includes(id);
-
   const scrappedPosts = posts.filter((p) => scrappedIds.includes(p.id));
 
   return (
-    <PostContext.Provider value={{ posts, addPost, toggleScrap, isScrapped, scrappedPosts }}>
+    <PostContext.Provider value={{
+      posts, addPost, deletePost, updatePost,
+      addComment, deleteComment, getComments,
+      toggleScrap, isScrapped, scrappedPosts,
+    }}>
       {children}
     </PostContext.Provider>
   );
