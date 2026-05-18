@@ -11,7 +11,6 @@ import {
   submitPeriodAnswer,
   getNextOptions,
   proceedToNextPeriod,
-  completeInterview,
 } from '../../api/interview'
 
 const INTERVIEWER_TYPE_MAP = {
@@ -56,7 +55,6 @@ export default function InterviewCamera({ navigation, route }) {
   const cameraRef = useRef(null)
   const isRecordingRef = useRef(false)
   const recordingPromise = useRef(null)
-  const completedRef = useRef(false)
   const actionInProgressRef = useRef(false)
 
   // 카메라 + 마이크 권한 요청
@@ -204,16 +202,7 @@ export default function InterviewCamera({ navigation, route }) {
       if (!mounted) return
       setLoadingStep(2)
 
-      // 마지막 교시면 최종 피드백 생성
       if (currentRound >= 5) {
-        if (currentSessionId) {
-          try {
-            await completeInterview(currentSessionId)
-            completedRef.current = true
-          } catch (e) {
-            console.error('면접 완료 오류:', e)
-          }
-        }
         if (mounted) setPhase('end')
       } else {
         await new Promise(r => setTimeout(r, 600))
@@ -288,18 +277,7 @@ export default function InterviewCamera({ navigation, route }) {
   // 면접 종료 → InterviewEnd 이동
   useEffect(() => {
     if (phase !== 'end') return
-    const finish = async () => {
-      // 이미 completeInterview 안 됐으면 실행 (조기 종료 케이스)
-      if (sessionIdRef.current && !completedRef.current) {
-        try {
-          await completeInterview(sessionIdRef.current)
-        } catch (e) {
-          console.error('면접 종료 오류:', e)
-        }
-      }
-      navigation.replace('InterviewEnd', { sessionId: sessionIdRef.current })
-    }
-    finish()
+    navigation.replace('InterviewEnd', { sessionId: sessionIdRef.current })
   }, [phase])
 
   // 권한 처리

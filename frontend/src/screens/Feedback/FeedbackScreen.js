@@ -43,6 +43,7 @@ export default function FeedbackScreen({ navigation, route }) {
   }
 
   const competencyData = COMPETENCY_CONFIG.map(({ key, title, icon }) => ({
+    key,
     title,
     subtitle: ff?.competencyShortDescriptions?.[key] || '',
     score: ff?.competencyScores?.[key] ?? 0,
@@ -154,7 +155,10 @@ export default function FeedbackScreen({ navigation, route }) {
                     </View>
                   </View>
 
-                  <TouchableOpacity style={styles.historyButton}>
+                  <TouchableOpacity
+                    style={styles.historyButton}
+                    onPress={() => navigation.navigate('Archive')}
+                  >
                     <CustomText weight="bold" style={styles.historyText}>
                       이전 면접 비교 보기
                     </CustomText>
@@ -210,6 +214,7 @@ export default function FeedbackScreen({ navigation, route }) {
                         onPress={() =>
                           navigation.navigate('FeedbackDetail', {
                             competency: item,
+                            periodFeedbacks: feedbackData?.periodFeedbacks || [],
                           })
                         }
                       >
@@ -265,7 +270,47 @@ export default function FeedbackScreen({ navigation, route }) {
 
         {activeTab === 'each' && (
           <View>
-            <CustomText>영상별 피드백 내용</CustomText>
+            {loading ? (
+              <ActivityIndicator size="large" color="#3281FF" style={{ marginTop: 40 }} />
+            ) : !feedbackData?.periodFeedbacks?.length ? (
+              <CustomText style={{ textAlign: 'center', marginTop: 40, color: '#999' }}>
+                영상별 피드백 데이터가 없습니다.
+              </CustomText>
+            ) : (
+              feedbackData.periodFeedbacks.map((pf, index) => {
+                const pgInfo = getGradeInfo(pf?.overallScore ?? 0)
+                return (
+                  <View key={index} style={styles.periodFeedbackCard}>
+                    <View style={styles.periodFeedbackHeader}>
+                      <CustomText weight="bold" style={styles.periodFeedbackNum}>
+                        {index + 1}교시
+                      </CustomText>
+                      <View style={[styles.periodFeedbackGrade, { backgroundColor: `${pgInfo.color}20` }]}>
+                        <CustomText weight="bold" style={[styles.periodFeedbackGradeText, { color: pgInfo.color }]}>
+                          {pf?.overallScore ?? 0}점
+                        </CustomText>
+                      </View>
+                    </View>
+                    <CustomText style={styles.periodFeedbackText}>
+                      {pf?.summaryFeedback || '피드백 없음'}
+                    </CustomText>
+                    {pf?.improvementTips?.length > 0 && (
+                      <>
+                        <View style={styles.periodFeedbackDivider} />
+                        <CustomText weight="bold" style={styles.periodFeedbackTipsTitle}>
+                          개선 포인트
+                        </CustomText>
+                        {pf.improvementTips.map((tip, i) => (
+                          <CustomText key={i} style={styles.periodFeedbackTip}>
+                            {'• '}{tip}
+                          </CustomText>
+                        ))}
+                      </>
+                    )}
+                  </View>
+                )
+              })
+            )}
           </View>
         )}
       </ScrollView>
