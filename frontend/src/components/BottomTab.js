@@ -14,9 +14,9 @@ export default function BottomTab({ navigation, routeName }) {
       icon: require('../../assets/icons/community.png'),
     },
     {
-      name: 'Schedule',
+      name: 'Archive',
       label: '일정관리',
-      icon: require('../../assets/icons/schedule.png'),
+      icon: require('../../assets/icons/archive.png'),
     },
     {
       name: 'Profile',

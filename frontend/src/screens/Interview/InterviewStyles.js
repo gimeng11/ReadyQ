@@ -29,7 +29,6 @@ export const styles = StyleSheet.create({
     padding: 20,
     width: '100%',
   },
-
   card: {
     padding: 12,
     paddingHorizontal: 40,
@@ -39,19 +38,16 @@ export const styles = StyleSheet.create({
     borderWidth: 1.2,
     borderColor: '#ddd',
   },
-
   cardSelected: {
     borderColor: '#3281FF',
     borderWidth: 2,
     backgroundColor: '#F0F6FF',
   },
-
   cardTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
   },
-
   cardDesc: {
     fontSize: 13,
     marginTop: 6,

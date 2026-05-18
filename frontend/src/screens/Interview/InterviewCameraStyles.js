@@ -45,6 +45,17 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: 'center',
   },
+  startNowButton: {
+    marginTop: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  startNowText: {
+    color: '#fff',
+    fontSize: 14,
+  },
   bottomContainer: {
     position: 'absolute',
     bottom: 40,
@@ -81,42 +92,26 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 26,
   },
-  breakBox: {
+  timeguideText:{
+    color: '#fff',
+    textAlign: 'center',
+    fontSize: 16,
+    marginTop: 22
+  },
+  answerTimer: {
+    marginTop: 10,
+    color: '#ffed4a',
+    fontSize: 20,
+    letterSpacing: 2,
+  },
+  breakContainer: {
     position: 'absolute',
-    bottom: 50,
+    bottom: 20,
     left: 20,
     right: 20,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 16,
-    padding: 20,
   },
-  breakText: {
-    color: '#fff',
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  breakButton: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-    alignItems: 'center',
-  },
-  breakPrimary: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-  breakDanger: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-  breakBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  breakBtndangerText: {
-    color: '#ff0000',
-    fontSize: 14,
-    fontWeight: '600',
+  breakCustomButton: {
+    marginBottom: 12,
   },
   modalOverlay: {
     position: 'absolute',
@@ -128,31 +123,26 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   modalBox: {
     width: '80%',
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 20,
   },
-
   modalTitle: {
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 12,
   },
-
   modalDesc: {
     fontSize: 13,
     textAlign: 'center',
     color: '#666',
     marginBottom: 20,
   },
-
   modalButtonContainer: {
     flexDirection: 'column',
   },
-
   modalButton: {
     paddingVertical: 10,
     borderRadius: 10,

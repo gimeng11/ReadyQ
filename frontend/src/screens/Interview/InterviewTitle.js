@@ -39,13 +39,13 @@ export default function InterviewTitle({ navigation }) {
           </View>
           
           <CustomButton
-            title={title ? "면접 시작하기" : "다음"}
+            title='다음'
             type={title ? 'primary' : 'secondary'}
             disabled={!title}
             style={styles.Button}
             onPress={() => {
               if (!title) return
-              navigation.navigate('InterviewCamera', {
+              navigation.navigate('QuestionType', {
                 selectedType: title, // 면접 제목 전달
               })
             }}

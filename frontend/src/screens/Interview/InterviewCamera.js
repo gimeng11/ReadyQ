@@ -3,25 +3,55 @@ import { useEffect, useState } from 'react'
 import { CameraView, Camera } from 'expo-camera'
 import { styles } from './InterviewCameraStyles'
 import CustomText from '../../components/CustomText'
+import CustomButton from '../../components/CustomButton'
+import LoadingScreen from '../../components/LoadingScreen'
+import QuestionSelectScreen from '../../components/QuestionSelect'
 
-export default function InterviewCamera({ navigation }) {
+export default function InterviewCamera({ navigation, route }) {
+
+  const { selectedType } = route.params || {}
+
   const [hasPermission, setHasPermission] = useState(null)
 
   // 카메라
   const [facing, setFacing] = useState('front')
 
   // 면접 흐름 관리
-  const [phase, setPhase] = useState('guide') // guide → question → break → end
+  // guide → question → select → loading → break → end
+  const [phase, setPhase] = useState('guide')
   const [round, setRound] = useState(1)
 
-  // 가이드 창 타이머 (30초)
+  // 가이드 타이머
   const [timeLeft, setTimeLeft] = useState(3)
+
+  // 준비 시간
+  const [readyTime, setReadyTime] = useState(10)
+
+  // 답변 제한 시간
+  const [answerTime, setAnswerTime] = useState(90)
 
   // 질문
   const [question, setQuestion] = useState('')
 
-  // exit 버튼 상태 관리
+  const questionCandidates = [
+    '최근 협업 경험에 대해 설명해주세요.',
+    '가장 어려웠던 문제 해결 경험은 무엇인가요?',
+    '본인의 강점은 무엇이라고 생각하시나요?',
+    '실패했던 경험과 극복 과정을 말해주세요.',
+    '지원 직무에 관심을 가지게 된 계기는 무엇인가요?',
+  ]
+
+  // exit 버튼 상태
   const [exitModalVisible, setExitModalVisible] = useState(false)
+
+  // 로딩 단계
+  const [loadingStep, setLoadingStep] = useState(0)
+
+  const loadingMessages = [
+    '영상을 분석중이에요.',
+    '피드백 생성중이에요.',
+    '완료되었어요.',
+  ]
 
   // 카메라 권한
   useEffect(() => {
@@ -31,7 +61,7 @@ export default function InterviewCamera({ navigation }) {
     })()
   }, [])
 
-  // 가이드 창 타이머
+  // 가이드 타이머
   useEffect(() => {
     if (phase !== 'guide') return
 
@@ -42,6 +72,7 @@ export default function InterviewCamera({ navigation }) {
           setPhase('question')
           return 0
         }
+
         return prev - 1
       })
     }, 1000)
@@ -49,15 +80,70 @@ export default function InterviewCamera({ navigation }) {
     return () => clearInterval(timer)
   }, [phase])
 
-  // 1교시 질문 호출
+  // question 진입 시 시간 초기화
   useEffect(() => {
-    if (phase === 'question' && round === 1) {
-      setQuestion('1교시\n간단한 자기소개 부탁드립니다.')
+    if (phase === 'question') {
+      setReadyTime(10)
+      setAnswerTime(90)
     }
   }, [phase])
 
-  // 질문 (1교시 질문은 고정, 나머지는 AI 생성)
-  const handleBreakAction = async (type) => {
+  // 준비 시간 + 답변 시간
+  useEffect(() => {
+    if (phase !== 'question') return
+
+    const timer = setInterval(() => {
+
+      // 준비 시간 먼저 감소
+      if (readyTime > 0) {
+        setReadyTime(prev => prev - 1)
+        return
+      }
+
+      // 준비 시간 끝나면 답변 시간 감소
+      setAnswerTime(prev => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          handleNext()
+          return 0
+        }
+
+        return prev - 1
+      })
+
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [phase, readyTime])
+
+  // 질문 호출
+  useEffect(() => {
+    if (phase !== 'question') return
+
+    // 1교시는 고정 자기소개
+    if (round === 1 && question === '') {
+      setQuestion('1교시\n간단한 자기소개 부탁드립니다.')
+      return
+    }
+
+    // 랜덤 질문 모드
+    if (
+      selectedType === 'random' &&
+      round !== 1 &&
+      question === ''
+    ) {
+      const randomIndex = Math.floor(
+        Math.random() * questionCandidates.length
+      )
+
+      setQuestion(
+        `${round}교시\n${questionCandidates[randomIndex]}`
+      )
+    }
+  }, [phase, round])
+
+  // 질문 이동
+  const handleBreakAction = (type) => {
     if (type === 'end') {
       setPhase('end')
       return
@@ -65,124 +151,155 @@ export default function InterviewCamera({ navigation }) {
 
     const nextRound = round + 1
 
-    let newQuestion = ''
-
-    if (nextRound === 1) {
-      newQuestion = '1교시\n간단한 자기소개 부탁드립니다.'
-    } else { //추후 AI 로직으로 수정 필요
-      if (type === 'follow') {
-        newQuestion = `${nextRound}교시\n(꼬리 질문)`
-      } else {
-        newQuestion = `${nextRound}교시\n(새 질문)`
-      }
-    }
-
     setRound(nextRound)
-    setQuestion(newQuestion)
-    setPhase('question')
-  }
+    setQuestion('')
 
-  // 교시 끝난 후 
-  const handleNext = () => {
-    if (round >= 5) {
-      setPhase('end')
+    // 질문 직접 선택
+    if (selectedType === 'select') {
+      setPhase('select')
       return
     }
 
-    setPhase('break')
+    // 랜덤 질문
+    setPhase('question')
   }
 
-  //면접 종료, 5교시 끝났을 때
-  useEffect(() => {
-  if (phase === 'end') {
-    navigation.replace('InterviewEnd') //테스트 후 replace로 수정 예정.
+  // 체크 버튼
+  const handleNext = () => {
+    setPhase('loading')
   }
-}, [phase])
+
+  // 로딩 진행
+  useEffect(() => {
+    if (phase !== 'loading') return
+
+    setLoadingStep(0)
+
+    const timer1 = setTimeout(() => {
+      setLoadingStep(1)
+    }, 1500)
+
+    const timer2 = setTimeout(() => {
+      setLoadingStep(2)
+
+      if (round >= 5) {
+        setTimeout(() => {
+          setPhase('end')
+        }, 2000)
+      } else {
+        setPhase('break')
+      }
+    }, 3000)
+
+    return () => {
+      clearTimeout(timer1)
+      clearTimeout(timer2)
+    }
+  }, [phase])
+
+  // 종료
+  useEffect(() => {
+    if (phase === 'end') {
+      navigation.replace('InterviewEnd')
+    }
+  }, [phase])
 
   // 카메라 권한 처리
   if (hasPermission === null) return <View />
-  if (hasPermission === false)
+
+  if (hasPermission === false) {
     return (
       <View>
         <Text>카메라 권한이 필요합니다</Text>
       </View>
     )
+  }
 
   return (
     <View style={{ flex: 1 }}>
-      <CameraView style={StyleSheet.absoluteFillObject} facing={facing} />
+      <CameraView
+        style={StyleSheet.absoluteFillObject}
+        facing={facing}
+      />
 
-      {/* 가이드 창 떠있을 때(guide 상태)만 backbutton 출력 */}
+      {/* guide */}
       {phase === 'guide' && (
-        <View style={styles.overlay}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Image
-              source={require('../../../assets/icons/arrow.png')}
-              style={styles.icon}
-            />
-          </TouchableOpacity>
-        </View>
+        <>
+          <View style={styles.overlay}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Image
+                source={require('../../../assets/icons/arrow.png')}
+                style={styles.icon}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.guideBox}>
+            <CustomText weight="bold" style={styles.guideTitle}>
+              30초 뒤 면접이 시작돼요.
+            </CustomText>
+
+            <CustomText style={styles.guideText}>
+              모든 영상 면접은 피드백을 위해 녹화됩니다.{"\n"}
+              위치를 카메라에 잘 보이도록 조정해주세요.{"\n"}
+              긴장을 풀고 면접에 집중해주세요.
+            </CustomText>
+
+            <CustomText weight="bold" style={styles.guideTime}>
+              {timeLeft}
+            </CustomText>
+
+            <TouchableOpacity
+              style={styles.startNowButton}
+              onPress={() => setPhase('question')}
+            >
+              <CustomText weight="bold" style={styles.startNowText}>
+                바로 시작
+              </CustomText>
+            </TouchableOpacity>
+          </View>
+        </>
       )}
 
-      {/* 가이드 창 */}
-      {phase === 'guide' && (
-        <View style={styles.guideBox}>
-          <CustomText weight="bold" style={styles.guideTitle}>
-            30초 뒤 면접이 시작돼요.
-          </CustomText>
-
-          <CustomText style={styles.guideText}>
-            모든 영상 면접은 피드백을 위해 녹화됩니다.{"\n"}
-            위치를 카메라에 잘 보이도록 조정해주세요.{"\n"}
-            긴장을 풀고 면접에 집중해주세요.
-          </CustomText>
-
-          <CustomText weight="bold" style={styles.guideTime}>
-            {timeLeft}
-          </CustomText>
-        </View>
-      )}
-
-      {/* 🔵 질문 */}
+      {/* question */}
       {phase === 'question' && (
-        <View style={styles.questionBox}>
-          <CustomText weight="bold" style={styles.questionText}>
-            {question}
-          </CustomText>
-        </View>
+        <>
+          <View style={styles.questionBox}>
+            <CustomText weight="bold" style={styles.questionText}>
+              {question}
+            </CustomText>
+
+            <CustomText weight="bold" style={styles.timeguideText}>
+              {readyTime > 0 ? '준비시간 : ' : '딥뱐시간 : '}
+            </CustomText>
+
+
+            <CustomText
+              weight="bold"
+              style={[
+                styles.answerTimer,
+                answerTime <= 10 && { color: '#FF4D4F' }
+              ]}
+            >
+              {readyTime > 0 ? readyTime : answerTime}
+            </CustomText>
+          </View>
+        </>
       )}
 
-      {/* 쉬는시간 */}
-      {phase === 'break' && (
-        <View style={styles.breakBox}>
-          <CustomText weight="bold" style={styles.breakText}>
-            다음 질문으로 넘어가시겠습니까?
-          </CustomText>
-
-          <TouchableOpacity
-            style={[styles.breakButton, styles.breakPrimary]}
-            onPress={() => handleBreakAction('follow')}
-          >
-            <CustomText weight="bold" style={styles.breakBtnText}>꼬리 질문</CustomText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.breakButton, styles.breakPrimary]}
-            onPress={() => handleBreakAction('new')}
-          >
-            <CustomText weight="bold" style={styles.breakBtnText}>다음 질문</CustomText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.breakButton, styles.breakDanger]}
-            onPress={() => handleBreakAction('end')}
-          >
-            <CustomText weight="bold" style={styles.breakBtndangerText}>면접 종료</CustomText>
-          </TouchableOpacity>
-        </View>
+      {/* select */}
+      {phase === 'select' && (
+        <QuestionSelectScreen
+          round={round}
+          questionCandidates={questionCandidates}
+          onSelect={(item) => {
+            setQuestion(`${round}교시\n${item}`)
+            setPhase('question')
+          }}
+        />
       )}
 
       {/* 하단 버튼 */}
@@ -202,7 +319,7 @@ export default function InterviewCamera({ navigation }) {
 
           <TouchableOpacity
             style={[
-              styles.circleButton, 
+              styles.circleButton,
               phase === 'guide' && { opacity: 0.3 }
             ]}
             disabled={phase === 'guide'}
@@ -216,7 +333,7 @@ export default function InterviewCamera({ navigation }) {
 
           <TouchableOpacity
             style={[
-              styles.circleButton, 
+              styles.circleButton,
               phase === 'guide' && { opacity: 0.3 }
             ]}
             disabled={phase === 'guide'}
@@ -227,10 +344,10 @@ export default function InterviewCamera({ navigation }) {
               style={styles.icon}
             />
           </TouchableOpacity>
-        </View> 
+        </View>
       )}
 
-      {/*exitbutton 눌렀을 때 모달창*/}
+      {/* 모달 */}
       {exitModalVisible && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -247,22 +364,53 @@ export default function InterviewCamera({ navigation }) {
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalExit]}
                 onPress={() => {
-                  //DB 삭제 로직 작성
                   setExitModalVisible(false)
                   navigation.navigate('Home')
                 }}
               >
-                <CustomText weight="bold" style={styles.modalExitText}>그만두기</CustomText>
+                <CustomText weight="bold" style={styles.modalExitText}>
+                  그만두기
+                </CustomText>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalCancel]}
                 onPress={() => setExitModalVisible(false)}
               >
-                <CustomText weight="bold" style={styles.modalCancelText}>취소</CustomText>
+                <CustomText weight="bold" style={styles.modalCancelText}>
+                  취소
+                </CustomText>
               </TouchableOpacity>
             </View>
           </View>
+        </View>
+      )}
+
+      {/* loading + break */}
+      {(phase === 'loading' || phase === 'break') && (
+        <LoadingScreen
+          loadingStep={loadingStep}
+          loadingMessages={loadingMessages}
+          round={round}
+        />
+      )}
+
+      {/* break 버튼 */}
+      {phase === 'break' && (
+        <View style={styles.breakContainer}>
+          <CustomButton
+            title="다음 교시로"
+            type="primary"
+            style={styles.breakCustomButton}
+            onPress={() => handleBreakAction()}
+          />
+
+          <CustomButton
+            title="면접 종료"
+            type="secondary"
+            style={styles.breakCustomButton}
+            onPress={() => handleBreakAction('end')}
+          />
         </View>
       )}
     </View>

@@ -7,7 +7,9 @@ import Header from '../../components/Header'
 import AnalysisSection from '../../components/AnalysisSection'
 
 
-export default function FeedbackScreen({ navigation }) {
+export default function FeedbackScreen({ navigation, route}) {
+  const { from } = route.params ?? {}
+
   const [activeTab, setActiveTab] = useState('overall') // 'overall' | 'each'
 
   //분석 결과 데이터(임시), 추후 AI API 연결 필요
@@ -42,31 +44,31 @@ export default function FeedbackScreen({ navigation }) {
   const competencyData = [
     {
       title: '논리 구조력',
-      subtitle: '답변 구조',
+      subtitle: '근거가 부족해요.',
       score: 90,
       icon: require('../../../assets/icons/logic.png'),
     },
     {
       title: '속도 조절력',
-      subtitle: '말하기 속도 · 음성 크기',
+      subtitle: '말이 빨라요.',
       score: 88,
       icon: require('../../../assets/icons/time.png'),
     },
     {
       title: '발화 유창성',
-      subtitle: '추임새 빈도 · 말 끊김',
+      subtitle: '추임새가 잦아요.',
       score: 66,
       icon: require('../../../assets/icons/mouth.png'),
     },
     {
       title: '비언어 표현력',
-      subtitle: '시선 처리 · 표정 · 자세',
+      subtitle: '표정이 어색해요.',
       score: 43,
       icon: require('../../../assets/icons/person.png'),
     },
     {
       title: '전달 설득력',
-      subtitle: '목소리 톤 · 역양 · 강조',
+      subtitle: '목소리 톤이 너무 일정해요.',
       score: 0,
       icon: require('../../../assets/icons/mic.png'),
     },
@@ -90,9 +92,15 @@ export default function FeedbackScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Header
-        onBack={() => navigation.navigate ('Home')}
+        title="면접 피드백"
+        onBack={
+          from === 'Archive'
+            ? () => navigation.goBack()
+            : null
+        }
+        showHome={true}
+        onHome={() => navigation.navigate('Home')}
         icon={require('../../../assets/icons/home2.png')}
-        title=' 면접 피드백'
       />
 
       <View style={styles.tabContainer}>
