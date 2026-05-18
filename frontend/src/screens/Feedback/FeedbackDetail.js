@@ -27,10 +27,12 @@ export default function FeedbackDetail({ navigation }) {
   return (
     <View style={styles.container}>
       <Header
-        onBack={() => navigation.navigate ('Home')}
+        onBack={() => navigation.goBack()}
+        onHome={() => navigation.navigate('Home')}
+        showHome={true}
         icon={require('../../../assets/icons/home2.png')}
-        title='세부 피드백'
-    />
+        title="세부 피드백"
+        />
         
     </View>
 

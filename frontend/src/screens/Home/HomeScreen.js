@@ -8,12 +8,6 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
         
         <View style={styles.header}>
-    <TouchableOpacity onPress={() => navigation.navigate('Archive')}>
-      <Image
-        source={require('../../../assets/icons/archive.png')}
-        style={styles.archiveIcon}
-      />
-    </TouchableOpacity>
   </View>
       <View style={styles.content}>
         <Image

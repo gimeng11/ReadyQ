@@ -13,6 +13,7 @@ import NewPwScreen from './src/screens/FindPwScreen/NewPwScreen'
 import HomeScreen from './src/screens/Home/HomeScreen'
 import InterviewScreen from './src/screens/Interview/InterviewScreen'
 import InterviewTitle from './src/screens/Interview/InterviewTitle'
+import QuestionType from './src/screens/Interview/QuestionType'
 import InterviewCamera from './src/screens/Interview/InterviewCamera'
 import InterviewEnd from './src/screens/Interview/InterviewEnd'
 import MockInterviewScreen from './src/screens/MockInterview/MockInterviewScreen'
@@ -51,6 +52,7 @@ export default function App() {
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Interview" component={InterviewScreen} />
         <Stack.Screen name="InterviewTitle" component={InterviewTitle} />
+        <Stack.Screen name="QuestionType" component={QuestionType} />
         <Stack.Screen name="InterviewCamera" component={InterviewCamera} />
         <Stack.Screen name="InterviewEnd" component={InterviewEnd} />
         <Stack.Screen name="MockInterview" component={MockInterviewScreen} />

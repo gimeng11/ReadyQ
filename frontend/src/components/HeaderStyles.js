@@ -10,10 +10,19 @@ export const styles = StyleSheet.create({
 
   },
 
-  backButton: {
+  leftSection: {
     position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
     left: 10,
+  },
+
+  backButton: {
     padding: 10,
+  },
+
+  homeButton: {
+    marginLeft: 8,
   },
 
   arrow: {
