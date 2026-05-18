@@ -156,6 +156,8 @@ public class GeminiInterviewService {
                                                   List<String> previousQuestions) {
         String interviewerDescription = getInterviewerDescription(interviewerType);
         String prevQuestionsStr = previousQuestions.isEmpty() ? "없음" : String.join("\n- ", previousQuestions);
+        String company = (targetCompany != null && !targetCompany.isBlank()) ? targetCompany : "지원 기업";
+        String job = (targetJob != null && !targetJob.isBlank()) ? targetJob : "지원 직무";
         String prompt = String.format(
                 "%s\n\n" +
                 "지원자는 %s의 %s 직무에 지원했습니다.\n" +
@@ -163,7 +165,7 @@ public class GeminiInterviewService {
                 "이 자기소개 내용을 바탕으로 심층 면접 질문 1개를 생성해주세요.\n" +
                 "이미 사용한 질문 (중복 금지):\n- %s\n\n" +
                 "질문 한 문장만 반환하세요. 다른 텍스트는 포함하지 마세요.",
-                interviewerDescription, targetCompany, targetJob, prevQuestionsStr);
+                interviewerDescription, company, job, prevQuestionsStr);
 
         try {
             return extractLastLine(callGeminiWithVideo(introFileUri, introMimeType, prompt));
@@ -198,10 +200,13 @@ public class GeminiInterviewService {
                                          InterviewerType interviewerType,
                                          String coverLetter) {
         String interviewerDescription = getInterviewerDescription(interviewerType);
+        String coverLetterPart = (coverLetter != null && !coverLetter.isBlank())
+                ? "지원자 자기소개서: " + coverLetter + "\n"
+                : "";
         String prompt = String.format(
                 "%s\n\n" +
                 "질문: %s\n" +
-                "지원자 자기소개서: %s\n\n" +
+                "%s\n" +
                 "위 영상에서 지원자의 답변을 분석하여 다음 항목을 0~100점으로 평가하세요.\n\n" +
 
                 "[speechSpeed - 말하기 속도]\n" +
@@ -238,7 +243,7 @@ public class GeminiInterviewService {
                 "  \"detailFeedback\": {\"logicStructure\":\"피드백\",\"speechSpeed\":\"SPM 수치 포함\",\"voiceVolume\":\"수치 포함\",\"eyeContact\":\"피드백\",\"fillerWords\":\"횟수 포함\",\"answerClarity\":\"피드백\"},\n" +
                 "  \"improvementTips\": [\"팁1\",\"팁2\",\"팁3\"]\n" +
                 "}",
-                interviewerDescription, question, coverLetter);
+                interviewerDescription, question, coverLetterPart);
 
         try {
             long t = System.currentTimeMillis();
@@ -312,13 +317,15 @@ public class GeminiInterviewService {
                                       String targetCompany,
                                       String targetJob,
                                       List<String> previousQuestions) {
-        String prevQuestionsStr = String.join("\n- ", previousQuestions);
+        String prevQuestionsStr = previousQuestions.isEmpty() ? "없음" : String.join("\n- ", previousQuestions);
+        String tc = (targetCompany != null && !targetCompany.isBlank()) ? targetCompany : "지원 기업";
+        String tj = (targetJob != null && !targetJob.isBlank()) ? targetJob : "지원 직무";
         String prompt = String.format(
                 "%s 회사의 %s 직무 면접에서 사용할 새로운 질문을 1개 생성해주세요.\n" +
                 "이미 사용한 질문 (중복 금지):\n- %s\n\n" +
                 "직무 역량, 문제해결 경험, 협업 능력 중 한 가지를 중심으로 " +
                 "질문 한 문장만 반환하세요. 다른 텍스트는 포함하지 마세요.",
-                targetCompany, targetJob, prevQuestionsStr);
+                tc, tj, prevQuestionsStr);
 
         try {
             return callGeminiText(prompt).trim();
@@ -355,15 +362,26 @@ public class GeminiInterviewService {
                 "교시별 피드백:\n[%s]\n\n" +
                 "작성 규칙:\n" +
                 "- 모든 텍스트는 '요'체로 작성하세요 (예: ~해요, ~이에요, ~있어요, ~세요).\n" +
-                "- strongPoints와 improvementPoints 각 항목은 30자 이내로 간결하게 작성하세요.\n" +
-                "- overallSummary는 100자 이내로 작성하세요.\n\n" +
+                "- strongPoints, weakPoints, improvementPoints 각 항목은 30자 이내로 간결하게 작성하세요.\n" +
+                "- overallSummary는 100자 이내로 작성하세요.\n" +
+                "- competencyShortDescriptions의 각 설명은 15자 이내의 짧은 문장으로 작성하세요.\n" +
+                "  예시: '근거가 부족해요.', '말하기 속도가 빨라요.', '추임새가 잦아요.', '눈맞춤이 부족해요.'\n\n" +
                 "preamble 없이 순수 JSON만 반환하세요 (마크다운 코드블록 없이):\n" +
                 "{\n" +
                 "  \"totalScore\": 종합점수,\n" +
                 "  \"periodScores\": [교시1점수, 교시2점수, ...],\n" +
                 "  \"strongPoints\": [\"강점1\", \"강점2\", \"강점3\"],\n" +
+                "  \"weakPoints\": [\"아쉬운점1\", \"아쉬운점2\"],\n" +
                 "  \"improvementPoints\": [\"개선점1\", \"개선점2\", \"개선점3\"],\n" +
-                "  \"overallSummary\": \"전체 요약\"\n" +
+                "  \"overallSummary\": \"전체 요약\",\n" +
+                "  \"competencyShortDescriptions\": {\n" +
+                "    \"logicStructure\": \"논리 구조 관련 짧은 설명\",\n" +
+                "    \"speechSpeed\": \"말하기 속도 관련 짧은 설명\",\n" +
+                "    \"voiceVolume\": \"목소리 관련 짧은 설명\",\n" +
+                "    \"eyeContact\": \"비언어 표현 관련 짧은 설명\",\n" +
+                "    \"fillerWords\": \"추임새 관련 짧은 설명\",\n" +
+                "    \"answerClarity\": \"답변 명확성 관련 짧은 설명\"\n" +
+                "  }\n" +
                 "}",
                 feedbackList);
 
@@ -391,8 +409,10 @@ public class GeminiInterviewService {
             return String.format(
                 "{\"totalScore\":%d,\"periodScores\":%s," +
                 "\"strongPoints\":[\"면접에 성실히 임하셨습니다.\",\"질문에 충실하게 답변하셨습니다.\"]," +
+                "\"weakPoints\":[\"일부 답변에서 핵심이 다소 흐려졌어요.\"]," +
                 "\"improvementPoints\":[\"답변을 더 구체적으로 준비해 보세요.\",\"핵심 메시지를 먼저 전달하는 연습을 해보세요.\"]," +
-                "\"overallSummary\":\"AI 분석을 일시적으로 사용할 수 없습니다. 면접에 성실히 임해주셔서 감사합니다.\"}",
+                "\"overallSummary\":\"AI 분석을 일시적으로 사용할 수 없습니다. 면접에 성실히 임해주셔서 감사합니다.\"," +
+                "\"competencyShortDescriptions\":{\"logicStructure\":\"분석 중이에요.\",\"speechSpeed\":\"분석 중이에요.\",\"voiceVolume\":\"분석 중이에요.\",\"eyeContact\":\"분석 중이에요.\",\"fillerWords\":\"분석 중이에요.\",\"answerClarity\":\"분석 중이에요.\"}}",
                 avg, scoresJson);
         }
     }

@@ -22,7 +22,10 @@
       "PowerShell(ls \"C:\\\\프로젝트\\\\ReadyQ\" | Where-Object { $_.PSIsContainer })",
       "PowerShell(head *)",
       "PowerShell(ls \"C:\\\\프로젝트\\\\ReadyQ\" -Recurse | Where-Object { -not $_.PSIsContainer } | Select-Object -First 50 FullName)",
-      "Bash(Select-Object Name, PSIsContainer)"
+      "Bash(Select-Object Name, PSIsContainer)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\" -Force | Select-Object Name, @{Name=\"Type\"; Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}} | Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\\\\frontend\" -Recurse -Force | Where-Object {$_.PSIsContainer -eq $false} | Select-Object @{Name=\"Path\"; Expression={$_.FullName -replace [regex]::Escape\\(\"C:\\\\프로젝트\\\\ReadyQ\\\\\"\\)}} | Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\\\\backend\\\\src\" -Recurse -Force | Select-Object @{Name=\"Path\"; Expression={$_.FullName -replace [regex]::Escape\\(\"C:\\\\프로젝트\\\\ReadyQ\\\\backend\\\\src\\\\\"\\)}} | Sort-Object Path | Format-Table -AutoSize)"
     ]
   }
 }

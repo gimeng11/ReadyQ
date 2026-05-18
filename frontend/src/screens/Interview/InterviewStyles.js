@@ -7,6 +7,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F8F9FB',
     paddingTop: 100,
     alignItems: 'center',
+    overflow: 'hidden',
   },
   topSection: {
     width: '90%',

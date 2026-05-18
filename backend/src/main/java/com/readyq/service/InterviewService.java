@@ -15,7 +15,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -45,27 +47,25 @@ public class InterviewService {
             interviewerType = InterviewerType.DEFAULT;
         }
 
-        // Gemini로 1교시 질문 생성
+        // 1교시 고정 질문
         String firstQuestion = geminiService.generateInitialQuestion(
-                request.getCoverLetter(),
+                null,
                 request.getTargetCompany(),
                 request.getTargetJob(),
                 interviewerType
         );
 
-        // 1교시 PeriodResult 초기 생성
         PeriodResult firstPeriod = PeriodResult.builder()
                 .periodNum(1)
                 .question(firstQuestion)
                 .questionType(QuestionType.INTRO)
                 .build();
 
-        // 세션 생성
         InterviewSession session = InterviewSession.builder()
                 .userId(userId)
+                .title(request.getTitle())
                 .interviewerType(interviewerType)
                 .status(InterviewStatus.IN_PROGRESS)
-                .coverLetter(request.getCoverLetter())
                 .targetCompany(request.getTargetCompany())
                 .targetJob(request.getTargetJob())
                 .currentPeriod(1)
@@ -121,7 +121,7 @@ public class InterviewService {
                         fileRef.mimeType(),
                         periodResult.getQuestion(),
                         session.getInterviewerType(),
-                        session.getCoverLetter()
+                        null
                 ), geminiExecutor);
 
         CompletableFuture<List<String>> followUpFuture = CompletableFuture.supplyAsync(() ->
@@ -226,7 +226,7 @@ public class InterviewService {
                 nextQuestion = geminiService.generateQuestionFromIntroVideo(
                         introPeriod.getGeminiFileUri(),
                         introPeriod.getGeminiMimeType() != null ? introPeriod.getGeminiMimeType() : "video/mp4",
-                        session.getCoverLetter(),
+                        null,
                         session.getTargetCompany(),
                         session.getTargetJob(),
                         session.getInterviewerType(),
@@ -234,7 +234,7 @@ public class InterviewService {
                 );
             } else {
                 nextQuestion = geminiService.generateNewQuestion(
-                        session.getCoverLetter(),
+                        null,
                         session.getTargetCompany(),
                         session.getTargetJob(),
                         previousQuestions
@@ -290,9 +290,15 @@ public class InterviewService {
         String finalFeedbackJson = geminiService.generateFinalFeedback(feedbackJsonList);
         FinalFeedback finalFeedback = geminiService.parseFinalFeedback(finalFeedbackJson);
 
-        // 이전 면접과 점수 비교
-        String comparisonWithPrev = calculateComparisonWithPrev(userId, finalFeedback.getTotalScore(), sessionId);
-        finalFeedback.setComparisonWithPrev(comparisonWithPrev);
+        // 역량별 평균 점수 계산
+        List<PeriodFeedback> completedFeedbacks = session.getPeriods().stream()
+                .filter(p -> p.getParsedFeedback() != null)
+                .map(PeriodResult::getParsedFeedback)
+                .collect(Collectors.toList());
+        finalFeedback.setCompetencyScores(computeAverageCompetencyScores(completedFeedbacks));
+
+        // 이전/첫 면접 점수 비교
+        enrichSessionComparisons(userId, sessionId, finalFeedback);
 
         session.setFinalFeedback(finalFeedback);
         session.setStatus(InterviewStatus.COMPLETED);
@@ -407,27 +413,45 @@ public class InterviewService {
         }
     }
 
-    /**
-     * 이전 완료 세션과 점수를 비교하여 비교 문자열을 반환한다.
-     */
-    private String calculateComparisonWithPrev(String userId, int currentScore, String currentSessionId) {
-        List<InterviewSession> completed = sessionRepository.findByUserIdAndStatus(userId, InterviewStatus.COMPLETED);
-
-        // 현재 세션 제외, 최신 세션 찾기
-        InterviewSession prevSession = completed.stream()
-                .filter(s -> !s.getId().equals(currentSessionId))
-                .filter(s -> s.getFinalFeedback() != null)
-                .max((a, b) -> a.getCompletedAt().compareTo(b.getCompletedAt()))
-                .orElse(null);
-
-        if (prevSession == null) {
-            return "첫 번째 면접입니다.";
+    private Map<String, Integer> computeAverageCompetencyScores(List<PeriodFeedback> feedbacks) {
+        Map<String, Integer> result = new HashMap<>();
+        if (feedbacks.isEmpty()) return result;
+        String[] keys = {"logicStructure", "speechSpeed", "voiceVolume", "eyeContact", "fillerWords", "answerClarity"};
+        for (String key : keys) {
+            int sum = 0, count = 0;
+            for (PeriodFeedback pf : feedbacks) {
+                if (pf.getScores() != null && pf.getScores().containsKey(key)) {
+                    sum += pf.getScores().get(key);
+                    count++;
+                }
+            }
+            if (count > 0) result.put(key, sum / count);
         }
+        return result;
+    }
 
-        int diff = currentScore - prevSession.getFinalFeedback().getTotalScore();
-        if (diff > 0) return "이전 면접 대비 +" + diff + "점 향상";
-        if (diff < 0) return "이전 면접 대비 " + diff + "점 하락";
-        return "이전 면접과 동일한 점수입니다.";
+    private void enrichSessionComparisons(String userId, String currentSessionId, FinalFeedback finalFeedback) {
+        List<InterviewSession> completed = sessionRepository.findByUserIdAndStatus(userId, InterviewStatus.COMPLETED);
+        List<InterviewSession> others = completed.stream()
+                .filter(s -> !s.getId().equals(currentSessionId))
+                .filter(s -> s.getFinalFeedback() != null && s.getCompletedAt() != null)
+                .sorted((a, b) -> a.getCompletedAt().compareTo(b.getCompletedAt()))
+                .collect(Collectors.toList());
+
+        if (!others.isEmpty()) {
+            InterviewSession prev = others.get(others.size() - 1);
+            finalFeedback.setPrevSessionScore(prev.getFinalFeedback().getTotalScore());
+            InterviewSession first = others.get(0);
+            finalFeedback.setFirstSessionScore(first.getFinalFeedback().getTotalScore());
+
+            int diff = finalFeedback.getTotalScore() - prev.getFinalFeedback().getTotalScore();
+            finalFeedback.setComparisonWithPrev(
+                    diff > 0 ? "이전 면접 대비 +" + diff + "점 향상" :
+                    diff < 0 ? "이전 면접 대비 " + diff + "점 하락" :
+                    "이전 면접과 동일한 점수입니다.");
+        } else {
+            finalFeedback.setComparisonWithPrev("첫 번째 면접입니다.");
+        }
     }
 
     private FinalFeedbackResponse buildFinalFeedbackResponse(InterviewSession session) {
