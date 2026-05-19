@@ -1,11 +1,12 @@
-import { View, TextInput, ScrollView, TouchableOpacity, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { View, TextInput, TouchableOpacity, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { useState } from 'react'
 import { styles } from './InterviewTitleStyles'
 import CustomText from '../../components/CustomText'
 import CustomButton from '../../components/CustomButton'
 import Header from '../../components/Header'
 
-export default function InterviewTitle({ navigation }) {
+export default function InterviewTitle({ navigation, route }) {
+  const { selectedType: interviewerType } = route.params || {}
   const [title, setTitle] = useState('')
 
     return (
@@ -14,7 +15,7 @@ export default function InterviewTitle({ navigation }) {
           <Header
             onBack={() => navigation.goBack()}
           />
-          
+
           <View style={styles.topSection}>
             <CustomText weight="bold" style={styles.label1}>
               AI 면접을 시작하기 전,
@@ -37,7 +38,7 @@ export default function InterviewTitle({ navigation }) {
               onChangeText={setTitle}
             />
           </View>
-          
+
           <CustomButton
             title='다음'
             type={title ? 'primary' : 'secondary'}
@@ -46,11 +47,12 @@ export default function InterviewTitle({ navigation }) {
             onPress={() => {
               if (!title) return
               navigation.navigate('QuestionType', {
-                selectedType: title, // 면접 제목 전달
+                interviewerType,
+                title,
               })
             }}
           />
-    
+
         </View>
       </TouchableWithoutFeedback>
     )

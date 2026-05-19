@@ -1,4 +1,4 @@
-import { View, TextInput, TouchableOpacity, Alert } from 'react-native'
+import { View, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native'
 import { useState } from 'react'
 import { styles } from './NewPwStyles'
 import CustomText from '../../components/CustomText'
@@ -40,6 +40,7 @@ export default function NewPwScreen({ navigation, route }) {
   }
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <View style={styles.container}>
       <Header title="비밀번호 재설정" onBack={() => navigation.goBack()} />
 
@@ -109,5 +110,6 @@ export default function NewPwScreen({ navigation, route }) {
         </View>
       )}
     </View>
+    </KeyboardAvoidingView>
   )
 }

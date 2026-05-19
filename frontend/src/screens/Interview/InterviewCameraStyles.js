@@ -110,6 +110,12 @@ export const styles = StyleSheet.create({
     left: 20,
     right: 20,
   },
+  breakTimerText: {
+    textAlign: 'center',
+    fontSize: 18,
+    color: '#ffffff',
+    marginBottom: 16,
+  },
   breakCustomButton: {
     marginBottom: 12,
   },

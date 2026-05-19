@@ -168,4 +168,53 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     color: '#3281FF',
   },
+  periodFeedbackCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  periodFeedbackHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  periodFeedbackNum: {
+    fontSize: 16,
+    color: '#000',
+  },
+  periodFeedbackGrade: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  periodFeedbackGradeText: {
+    fontSize: 13,
+  },
+  periodFeedbackText: {
+    fontSize: 14,
+    color: '#64748B',
+    lineHeight: 20,
+  },
+  periodFeedbackDivider: {
+    height: 1,
+    backgroundColor: '#f0f0f0',
+    marginVertical: 10,
+  },
+  periodFeedbackTipsTitle: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 6,
+  },
+  periodFeedbackTip: {
+    fontSize: 13,
+    color: '#64748B',
+    lineHeight: 20,
+    paddingLeft: 4,
+  },
 })

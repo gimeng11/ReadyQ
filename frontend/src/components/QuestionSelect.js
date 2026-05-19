@@ -1,6 +1,5 @@
-import { View } from 'react-native'
+import { View, TouchableOpacity, Text } from 'react-native'
 import { styles } from './QuestionSelectStyles'
-import CustomButton from './CustomButton'
 import CustomText from './CustomText'
 
 export default function QuestionSelect({
@@ -16,13 +15,18 @@ export default function QuestionSelect({
 
       <View style={styles.buttonContainer}>
         {questionCandidates.map((item, index) => (
-          <CustomButton
+          <TouchableOpacity
             key={index}
-            title={item}
-            type="secondary"
-            style={styles.button}
+            style={[
+              styles.button,
+              index === questionCandidates.length - 1 && { marginBottom: 0 },
+            ]}
             onPress={() => onSelect(item)}
-          />
+          >
+            <Text style={styles.buttonText} numberOfLines={3}>
+              {item}
+            </Text>
+          </TouchableOpacity>
         ))}
       </View>
     </View>

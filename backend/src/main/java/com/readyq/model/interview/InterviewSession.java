@@ -25,11 +25,12 @@ public class InterviewSession {
     @Indexed
     private String userId;
 
+    private String title;
+
     private InterviewerType interviewerType;
 
     private InterviewStatus status;
 
-    // 지원자 자기소개서 텍스트
     private String coverLetter;
 
     private String targetCompany;

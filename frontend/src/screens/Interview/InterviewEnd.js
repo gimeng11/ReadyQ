@@ -2,9 +2,21 @@ import { View } from 'react-native'
 import { styles } from './InterviewEndStyles'
 import CustomText from '../../components/CustomText'
 import CustomButton from '../../components/CustomButton'
+import { completeInterview } from '../../api/interview'
 
 export default function InterviewEnd({ navigation, route }) {
   const { sessionId } = route.params ?? {}
+
+  const handleViewFeedback = () => {
+    // 조기 종료 시 completeInterview가 아직 실행 안 됐을 수 있으므로 백그라운드로 보장
+    if (sessionId) {
+      completeInterview(sessionId).catch(() => {})
+    }
+    navigation.replace('Feedback', {
+      sessionId,
+      from: 'InterviewEnd',
+    })
+  }
 
   return (
     <View style={styles.container}>
@@ -23,12 +35,7 @@ export default function InterviewEnd({ navigation, route }) {
           title="피드백 보러가기"
           type="primary"
           style={styles.buttonLeft}
-          onPress={() =>
-            navigation.replace('Feedback', {
-              sessionId,
-              from: 'InterviewEnd',
-            })
-          }
+          onPress={handleViewFeedback}
         />
 
         <CustomButton
