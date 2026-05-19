@@ -1,0 +1,177 @@
+import { StyleSheet } from 'react-native'
+
+export const styles = StyleSheet.create({
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 80,
+    paddingHorizontal: 16,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  guideBox: {
+    position: 'absolute',
+    bottom: 120, 
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+  },
+  guideTitle: {
+    color: '#fff',
+    fontSize: 18,
+    paddingBottom: 12,
+    textAlign: 'center',
+  },
+  guideText: {
+    color: '#fff',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingBottom: 14,  
+  },
+  guideTime: {
+    color: '#fff',
+    fontSize: 18,
+    textAlign: 'center',
+  },
+  startNowButton: {
+    marginTop: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  startNowText: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  bottomContainer: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+  },
+  circleButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  icon: {
+    tintColor: '#fff',
+  },
+  questionBox: {
+    position: 'absolute',
+    top: 90,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+  },
+  questionText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 26,
+  },
+  timeguideText:{
+    color: '#fff',
+    textAlign: 'center',
+    fontSize: 16,
+    marginTop: 22
+  },
+  answerTimer: {
+    marginTop: 10,
+    color: '#ffed4a',
+    fontSize: 20,
+    letterSpacing: 2,
+  },
+  breakContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+  },
+  breakCustomButton: {
+    marginBottom: 12,
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBox: {
+    width: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  modalDesc: {
+    fontSize: 13,
+    textAlign: 'center',
+    color: '#666',
+    marginBottom: 20,
+  },
+  modalButtonContainer: {
+    flexDirection: 'column',
+  },
+  modalButton: {
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  modalExit: {
+    backgroundColor: '#fff',
+  },
+  modalCancel: {
+    backgroundColor: '#fff',
+  },
+  modalCancelText: {
+    color: '#000',
+    fontWeight: '600',
+  },
+  modalExitText: {
+    color: '#ff0000',
+    fontWeight: '600',
+  },
+  endBox: {
+    position: 'absolute',
+    top: 200,
+    left: 20,
+    right: 20,
+    alignItems: 'center',
+  },
+  endText: {
+    color: '#fff',
+    fontSize: 18,
+  },
+})

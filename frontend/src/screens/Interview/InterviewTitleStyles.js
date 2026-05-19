@@ -23,43 +23,21 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 20,
   },
-  cardSection: {
+  inputSection: {
     flex: 1,
     backgroundColor: '#F8F9FB',
     padding: 20,
     width: '100%',
   },
-  card: {
-    padding: 12,
-    paddingHorizontal: 40,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    marginBottom: 14,
-    borderWidth: 1.2,
+  input: {
+    borderWidth: 1,
     borderColor: '#ddd',
-  },
-  cardSelected: {
-    borderColor: '#3281FF',
-    borderWidth: 2,
-    backgroundColor: '#F0F6FF',
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  cardDesc: {
-    fontSize: 13,
-    marginTop: 6,
-    color: '#64748B',
-    textAlign: 'center',
-  },
-  cardDisabled: {
-    backgroundColor: '#eee',
-    borderColor: '#ddd',
-  },
-  disabledText: {
-    color: '#aaa',
+    borderRadius: 10,      // 👈 둥근 모서리
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    fontSize: 14,
+    backgroundColor: '#F8F9FB',
+    color: '#333',
   },
   bottomSection: {
     width: '100%',
