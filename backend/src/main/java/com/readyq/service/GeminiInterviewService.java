@@ -105,26 +105,41 @@ public class GeminiInterviewService {
     }
 
     /**
-     * 파일 상태가 ACTIVE가 될 때까지 최대 30초간 폴링한다.
+     * 파일 상태가 ACTIVE가 될 때까지 폴링한다.
+     * 처음 10번은 500ms 간격, 이후는 2000ms 간격으로 최대 50초간 대기.
      */
     private void waitForFileActive(String fileName) {
-        for (int i = 0; i < 30; i++) {
+        int maxAttempts = 35;
+        for (int i = 0; i < maxAttempts; i++) {
             try {
                 String resp = webClient.get()
                         .uri(GEMINI_BASE_URL + "/" + fileName + "?key=" + apiKey)
                         .retrieve()
                         .bodyToMono(String.class)
-                        .block();
-                if (resp != null && resp.contains("\"state\":\"ACTIVE\"")) {
-                    log.info("[TIMING] ACTIVE 확인 완료 ({}번째 폴링)", i + 1);
-                    return;
+                        .block(Duration.ofSeconds(10));
+
+                if (resp != null) {
+                    JsonNode fileNode = objectMapper.readTree(resp);
+                    String state = fileNode.path("state").asText();
+                    log.debug("파일 상태: {} ({}번째 폴링)", state, i + 1);
+                    if ("ACTIVE".equals(state)) {
+                        log.info("[TIMING] ACTIVE 확인 완료 ({}번째 폴링)", i + 1);
+                        return;
+                    }
+                    if ("FAILED".equals(state)) {
+                        log.warn("Gemini 파일 처리 실패 상태 — 처리를 계속합니다.");
+                        return;
+                    }
                 }
-                Thread.sleep(2000);
+
+                long sleepMs = (i < 10) ? 500 : 2000;
+                Thread.sleep(sleepMs);
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
                 return;
             } catch (Exception e) {
-                log.warn("파일 상태 확인 실패 ({}회 시도)", i + 1, e);
+                log.warn("파일 상태 확인 실패 ({}회 시도): {}", i + 1, e.getMessage());
+                try { Thread.sleep(1000); } catch (InterruptedException ie2) { Thread.currentThread().interrupt(); return; }
             }
         }
         log.warn("파일 ACTIVE 상태 확인 타임아웃 — 처리를 계속합니다.");
@@ -264,11 +279,11 @@ public class GeminiInterviewService {
     // ───────────────────────────────────────────────
 
     /**
-     * 이전 답변 영상을 분석하여 꼬리질문 5개를 반환한다.
+     * 이전 질문을 바탕으로 꼬리질문 5개를 생성한다 (텍스트 기반).
      */
     public List<String> generateFollowUpQuestions(String fileUri, String mimeType, String prevQuestion) {
         String prompt = String.format(
-                "이전 면접 답변 영상을 분석하여 자연스럽게 이어질 수 있는 꼬리질문 5개를 생성해주세요.\n" +
+                "면접 질문에 자연스럽게 이어질 수 있는 꼬리질문 5개를 생성해주세요.\n" +
                 "이전 질문: %s\n\n" +
                 "preamble 없이 순수 JSON만 반환하세요 (마크다운 코드블록 없이):\n" +
                 "{\"questions\": [\"질문1\", \"질문2\", \"질문3\", \"질문4\", \"질문5\"]}",
@@ -277,7 +292,7 @@ public class GeminiInterviewService {
         String raw;
         try {
             long t = System.currentTimeMillis();
-            raw = callGeminiWithVideo(fileUri, mimeType, prompt);
+            raw = callGeminiText(prompt);
             log.info("[TIMING] generateFollowUpQuestions Gemini 호출: {}ms", System.currentTimeMillis() - t);
         } catch (Exception e) {
             log.warn("꼬리질문 Gemini 호출 실패 — 기본 질문 반환: {}", e.getMessage());
@@ -446,7 +461,8 @@ public class GeminiInterviewService {
                                             new org.springframework.web.reactive.function.client.WebClientResponseException(
                                                     clientResponse.statusCode().value(), clientResponse.statusCode().toString(), null, errBody.getBytes(), null))))
                     .bodyToMono(String.class)
-                    .retryWhen(Retry.backoff(2, Duration.ofSeconds(5))
+                    .retryWhen(Retry.backoff(3, Duration.ofSeconds(2))
+                            .maxBackoff(Duration.ofSeconds(10))
                             .filter(e -> {
                                 if (!(e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ex)) return false;
                                 int status = ex.getStatusCode().value();
@@ -456,7 +472,7 @@ public class GeminiInterviewService {
                                 String errBody = ex.getResponseBodyAsString();
                                 return !errBody.contains("RESOURCE_EXHAUSTED") && !errBody.contains("spending cap");
                             })
-                            .doBeforeRetry(rs -> log.warn("Gemini 429/503 — {}초 후 재시도 ({}/2)", 5 * (1L << rs.totalRetries()), rs.totalRetries() + 1)))
+                            .doBeforeRetry(rs -> log.warn("Gemini 429/503 — 재시도 ({}/3)", rs.totalRetries() + 1)))
                     .block();
 
             return extractTextFromResponse(response);
@@ -500,7 +516,8 @@ public class GeminiInterviewService {
                                             new org.springframework.web.reactive.function.client.WebClientResponseException(
                                                     clientResponse.statusCode().value(), clientResponse.statusCode().toString(), null, errBody.getBytes(), null))))
                     .bodyToMono(String.class)
-                    .retryWhen(Retry.backoff(2, Duration.ofSeconds(5))
+                    .retryWhen(Retry.backoff(3, Duration.ofSeconds(2))
+                            .maxBackoff(Duration.ofSeconds(10))
                             .filter(e -> {
                                 if (!(e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ex)) return false;
                                 int status = ex.getStatusCode().value();
@@ -510,7 +527,7 @@ public class GeminiInterviewService {
                                 String errBody = ex.getResponseBodyAsString();
                                 return !errBody.contains("RESOURCE_EXHAUSTED") && !errBody.contains("spending cap");
                             })
-                            .doBeforeRetry(rs -> log.warn("Gemini 429/503 — {}초 후 재시도 ({}/2)", 5 * (1L << rs.totalRetries()), rs.totalRetries() + 1)))
+                            .doBeforeRetry(rs -> log.warn("Gemini 429/503 — 재시도 ({}/3)", rs.totalRetries() + 1)))
                     .block();
 
             return extractTextFromResponse(response);

@@ -35,7 +35,7 @@ export default function InterviewCamera({ navigation, route }) {
   const [round, setRound] = useState(1)
   const roundRef = useRef(1)
 
-  const [timeLeft, setTimeLeft] = useState(3)
+  const [timeLeft, setTimeLeft] = useState(30)
   const [readyTime, setReadyTime] = useState(10)
   const [answerTime, setAnswerTime] = useState(90)
   const readyTimeRef = useRef(10)
