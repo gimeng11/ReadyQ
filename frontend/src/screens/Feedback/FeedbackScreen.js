@@ -22,16 +22,39 @@ export default function FeedbackScreen({ navigation, route }) {
   const [activeTab, setActiveTab] = useState('overall')
   const [feedbackData, setFeedbackData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [loadingText, setLoadingText] = useState('피드백 생성중이에요...')
 
   useEffect(() => {
     if (!sessionId) {
       setLoading(false)
       return
     }
-    getSessionFeedback(sessionId)
-      .then(data => setFeedbackData(data))
-      .catch(e => console.error('피드백 조회 실패:', e))
-      .finally(() => setLoading(false))
+
+    let cancelled = false
+    let attempts = 0
+    const maxAttempts = 30
+
+    const poll = async () => {
+      try {
+        const data = await getSessionFeedback(sessionId)
+        if (!cancelled) {
+          setFeedbackData(data)
+          setLoading(false)
+        }
+      } catch (e) {
+        if (cancelled) return
+        if (attempts < maxAttempts) {
+          attempts++
+          setTimeout(poll, 2000)
+        } else {
+          setLoadingText('피드백 조회에 실패했어요.')
+          setLoading(false)
+        }
+      }
+    }
+
+    poll()
+    return () => { cancelled = true }
   }, [sessionId])
 
   const ff = feedbackData?.finalFeedback
@@ -118,7 +141,12 @@ export default function FeedbackScreen({ navigation, route }) {
           <View style={styles.contentContainer}>
 
             {loading ? (
-              <ActivityIndicator size="large" color="#3281FF" style={{ marginTop: 40 }} />
+              <View style={{ marginTop: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#3281FF" />
+                <CustomText weight="semibold" style={{ marginTop: 16, color: '#666', fontSize: 15 }}>
+                  {loadingText}
+                </CustomText>
+              </View>
             ) : (
               <>
                 <View style={styles.scoreContainer}>
@@ -271,7 +299,12 @@ export default function FeedbackScreen({ navigation, route }) {
         {activeTab === 'each' && (
           <View>
             {loading ? (
-              <ActivityIndicator size="large" color="#3281FF" style={{ marginTop: 40 }} />
+              <View style={{ marginTop: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#3281FF" />
+                <CustomText weight="semibold" style={{ marginTop: 16, color: '#666', fontSize: 15 }}>
+                  {loadingText}
+                </CustomText>
+              </View>
             ) : !feedbackData?.periodFeedbacks?.length ? (
               <CustomText style={{ textAlign: 'center', marginTop: 40, color: '#999' }}>
                 영상별 피드백 데이터가 없습니다.

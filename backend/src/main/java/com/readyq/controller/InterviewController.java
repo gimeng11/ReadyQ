@@ -35,19 +35,33 @@ public class InterviewController {
     }
 
     /**
-     * POST /api/interview/{sessionId}/period/{num}/submit
-     * 영상 제출 → Gemini 피드백 생성 → 쉬는시간 응답 반환
+     * POST /api/interview/{sessionId}/period/{num}/upload
+     * 영상 로컬 저장 + Gemini File API 업로드
      */
-    @PostMapping(value = "/{sessionId}/period/{num}/submit",
+    @PostMapping(value = "/{sessionId}/period/{num}/upload",
                  consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<BreakTimeResponse> submitPeriodAnswer(
+    public ResponseEntity<Void> uploadPeriodVideo(
             Authentication auth,
             @PathVariable String sessionId,
             @PathVariable int num,
             @RequestPart("video") MultipartFile video) {
 
+        interviewService.uploadPeriodVideo(auth.getName(), sessionId, num, video);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * POST /api/interview/{sessionId}/period/{num}/submit
+     * Gemini 피드백 생성 → 쉬는시간 응답 반환 (upload 이후 호출)
+     */
+    @PostMapping("/{sessionId}/period/{num}/submit")
+    public ResponseEntity<BreakTimeResponse> submitPeriodAnswer(
+            Authentication auth,
+            @PathVariable String sessionId,
+            @PathVariable int num) {
+
         BreakTimeResponse response = interviewService.submitPeriodAnswer(
-                auth.getName(), sessionId, num, video);
+                auth.getName(), sessionId, num);
         return ResponseEntity.ok(response);
     }
 

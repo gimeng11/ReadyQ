@@ -8,16 +8,20 @@ export const startInterview = (data) =>
     body: JSON.stringify(data),
   })
 
-// 교시 영상 제출 → Gemini 피드백 생성
-export const submitPeriodAnswer = (sessionId, num, videoUri) => {
+// 교시 영상 업로드 → 로컬 저장 + Gemini File API 업로드
+export const uploadPeriodVideo = (sessionId, num, videoUri) => {
   const formData = new FormData()
   formData.append('video', {
     uri: videoUri,
     type: 'video/mp4',
     name: `period_${num}.mp4`,
   })
-  return apiCallMultipart(`/api/interview/${sessionId}/period/${num}/submit`, formData)
+  return apiCallMultipart(`/api/interview/${sessionId}/period/${num}/upload`, formData)
 }
+
+// 교시 피드백 생성 (upload 이후 호출)
+export const generatePeriodFeedback = (sessionId, num) =>
+  apiCallAuth(`/api/interview/${sessionId}/period/${num}/submit`, { method: 'POST' })
 
 // 쉬는시간 선택지 조회 (꼬리질문 5개 + 새질문 + 종료)
 export const getNextOptions = (sessionId, num) =>

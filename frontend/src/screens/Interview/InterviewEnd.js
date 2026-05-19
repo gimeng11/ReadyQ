@@ -7,14 +7,10 @@ import { completeInterview } from '../../api/interview'
 export default function InterviewEnd({ navigation, route }) {
   const { sessionId } = route.params ?? {}
 
-  const handleViewFeedback = async () => {
-    // 아직 complete 안 됐을 경우 (조기 종료 시) 여기서 처리
+  const handleViewFeedback = () => {
+    // 조기 종료 시 completeInterview가 아직 실행 안 됐을 수 있으므로 백그라운드로 보장
     if (sessionId) {
-      try {
-        await completeInterview(sessionId)
-      } catch (e) {
-        // 이미 완료된 경우 무시
-      }
+      completeInterview(sessionId).catch(() => {})
     }
     navigation.replace('Feedback', {
       sessionId,

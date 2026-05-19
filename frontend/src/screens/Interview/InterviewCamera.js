@@ -8,9 +8,11 @@ import LoadingScreen from '../../components/LoadingScreen'
 import QuestionSelectScreen from '../../components/QuestionSelect'
 import {
   startInterview,
-  submitPeriodAnswer,
+  uploadPeriodVideo,
+  generatePeriodFeedback,
   getNextOptions,
   proceedToNextPeriod,
+  completeInterview,
 } from '../../api/interview'
 
 const INTERVIEWER_TYPE_MAP = {
@@ -38,6 +40,8 @@ export default function InterviewCamera({ navigation, route }) {
   const [answerTime, setAnswerTime] = useState(90)
   const readyTimeRef = useRef(10)
   const answerTimeRef = useRef(90)
+  const [breakTime, setBreakTime] = useState(30)
+  const breakTimeRef = useRef(30)
 
   const [question, setQuestion] = useState('')
   const [followUpQuestions, setFollowUpQuestions] = useState([])
@@ -46,7 +50,7 @@ export default function InterviewCamera({ navigation, route }) {
   const [loadingStep, setLoadingStep] = useState(0)
 
   const loadingMessages = [
-    '영상을 분석중이에요.',
+    '영상 분석중이에요.',
     '피드백 생성중이에요.',
     '완료되었어요.',
   ]
@@ -188,15 +192,26 @@ export default function InterviewCamera({ navigation, route }) {
       }
 
       if (!mounted) return
-      setLoadingStep(1)
 
-      // 영상 제출
+      // 영상 분석중: 로컬 저장 + Gemini 업로드
       try {
         if (currentSessionId && videoUri) {
-          await submitPeriodAnswer(currentSessionId, currentRound, videoUri)
+          await uploadPeriodVideo(currentSessionId, currentRound, videoUri)
         }
       } catch (e) {
-        console.error('영상 제출 오류:', e)
+        console.error('영상 업로드 오류:', e)
+      }
+
+      if (!mounted) return
+      setLoadingStep(1)
+
+      // 피드백 생성중: Gemini 피드백 생성
+      try {
+        if (currentSessionId) {
+          await generatePeriodFeedback(currentSessionId, currentRound)
+        }
+      } catch (e) {
+        console.error('피드백 생성 오류:', e)
       }
 
       if (!mounted) return
@@ -212,6 +227,21 @@ export default function InterviewCamera({ navigation, route }) {
 
     process()
     return () => { mounted = false }
+  }, [phase])
+
+  // 쉬는 시간 30초 카운트다운
+  useEffect(() => {
+    if (phase !== 'break') return
+    breakTimeRef.current = 30
+    setBreakTime(30)
+    const timer = setInterval(() => {
+      breakTimeRef.current -= 1
+      setBreakTime(breakTimeRef.current)
+      if (breakTimeRef.current <= 0) {
+        clearInterval(timer)
+      }
+    }, 1000)
+    return () => clearInterval(timer)
   }, [phase])
 
   // 쉬는 시간 선택
@@ -274,10 +304,12 @@ export default function InterviewCamera({ navigation, route }) {
     setPhase('question')
   }
 
-  // 면접 종료 → InterviewEnd 이동
+  // 면접 종료 → 최종 피드백 백그라운드 생성 시작 + InterviewEnd 이동
   useEffect(() => {
     if (phase !== 'end') return
-    navigation.replace('InterviewEnd', { sessionId: sessionIdRef.current })
+    const sid = sessionIdRef.current
+    completeInterview(sid).catch(e => console.error('최종 피드백 생성 오류:', e))
+    navigation.replace('InterviewEnd', { sessionId: sid })
   }, [phase])
 
   // 권한 처리
@@ -472,6 +504,11 @@ export default function InterviewCamera({ navigation, route }) {
       {/* break 버튼 */}
       {phase === 'break' && (
         <View style={styles.breakContainer}>
+          {breakTime > 0 && (
+            <CustomText weight="bold" style={styles.breakTimerText}>
+              쉬는 시간 {breakTime}초
+            </CustomText>
+          )}
           <CustomButton
             title="다음 교시로"
             type="primary"

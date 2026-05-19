@@ -89,11 +89,14 @@ export async function apiCallMultipart(endpoint, formData) {
     })
 
     console.log('[API] Multipart 응답 status:', res.status)
-    const data = await res.json()
-    console.log('[API] Multipart 응답 data:', JSON.stringify(data))
+    const text = await res.text()
+    console.log('[API] Multipart 응답 raw:', text.substring(0, 300))
+
+    const data = text ? JSON.parse(text) : null
+    if (data) console.log('[API] Multipart 응답 data:', JSON.stringify(data))
 
     if (!res.ok) {
-      throw new Error(data.message || '서버 오류가 발생했습니다')
+      throw new Error(data?.message || '서버 오류가 발생했습니다')
     }
     return data
   } catch (e) {

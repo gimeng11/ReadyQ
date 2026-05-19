@@ -85,40 +85,53 @@ public class InterviewService {
     }
 
     // ───────────────────────────────────────────────
-    // 2. 영상 제출 → 피드백 생성 + 저장 → 쉬는시간 응답
+    // 2a. 영상 업로드 → 로컬 저장 + Gemini File API 업로드
     // ───────────────────────────────────────────────
 
-    public BreakTimeResponse submitPeriodAnswer(String userId,
-                                                String sessionId,
-                                                int periodNum,
-                                                MultipartFile video) {
+    public void uploadPeriodVideo(String userId,
+                                  String sessionId,
+                                  int periodNum,
+                                  MultipartFile video) {
         InterviewSession session = getSessionAndValidateOwner(sessionId, userId);
-
         PeriodResult periodResult = getPeriodResult(session, periodNum);
 
-        long tTotal = System.currentTimeMillis();
-
-        // 영상 로컬 저장
         long t0 = System.currentTimeMillis();
         String videoPath = saveVideoLocally(video, userId, sessionId, periodNum);
         periodResult.setVideoPath(videoPath);
         log.info("[TIMING] {}교시 영상 로컬 저장: {}ms", periodNum, System.currentTimeMillis() - t0);
 
-        // Gemini File API에 영상 업로드
         long t1 = System.currentTimeMillis();
         GeminiInterviewService.GeminiFileRef fileRef = geminiService.uploadVideoToGemini(video);
         log.info("[TIMING] {}교시 Gemini 업로드+ACTIVE 대기: {}ms", periodNum, System.currentTimeMillis() - t1);
 
-        // Gemini URI 저장 (이후 교시 질문 생성에 재활용)
         periodResult.setGeminiFileUri(fileRef.uri());
         periodResult.setGeminiMimeType(fileRef.mimeType());
 
-        // 피드백 생성 + 꼬리질문 생성 병렬 실행
+        sessionRepository.save(session);
+    }
+
+    // ───────────────────────────────────────────────
+    // 2b. 피드백 생성 → Gemini 분석 + 쉬는시간 응답
+    // ───────────────────────────────────────────────
+
+    public BreakTimeResponse submitPeriodAnswer(String userId,
+                                                String sessionId,
+                                                int periodNum) {
+        InterviewSession session = getSessionAndValidateOwner(sessionId, userId);
+        PeriodResult periodResult = getPeriodResult(session, periodNum);
+
+        String geminiUri = periodResult.getGeminiFileUri();
+        String geminiMimeType = periodResult.getGeminiMimeType();
+
+        if (geminiUri == null) {
+            throw new IllegalStateException("영상이 아직 업로드되지 않았습니다. 먼저 /upload 를 호출하세요.");
+        }
+
         long t2 = System.currentTimeMillis();
         CompletableFuture<String> feedbackFuture = CompletableFuture.supplyAsync(() ->
                 geminiService.generatePeriodFeedback(
-                        fileRef.uri(),
-                        fileRef.mimeType(),
+                        geminiUri,
+                        geminiMimeType,
                         periodResult.getQuestion(),
                         session.getInterviewerType(),
                         null
@@ -126,17 +139,15 @@ public class InterviewService {
 
         CompletableFuture<List<String>> followUpFuture = CompletableFuture.supplyAsync(() ->
                 geminiService.generateFollowUpQuestions(
-                        fileRef.uri(), fileRef.mimeType(), periodResult.getQuestion()
+                        geminiUri, geminiMimeType, periodResult.getQuestion()
                 ), geminiExecutor);
 
         String feedbackJson = feedbackFuture.join();
         List<String> followUpQuestions = followUpFuture.join();
         log.info("[TIMING] {}교시 피드백+꼬리질문 병렬 생성: {}ms", periodNum, System.currentTimeMillis() - t2);
-        log.info("[TIMING] {}교시 submitPeriodAnswer 전체: {}ms", periodNum, System.currentTimeMillis() - tTotal);
 
         PeriodFeedback parsedFeedback = geminiService.parsePeriodFeedback(feedbackJson);
 
-        // PeriodResult 업데이트
         periodResult.setFeedbackJson(feedbackJson);
         periodResult.setParsedFeedback(parsedFeedback);
         periodResult.setFollowUpQuestions(followUpQuestions);
