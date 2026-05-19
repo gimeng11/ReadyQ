@@ -2,6 +2,7 @@ import { useFonts } from 'expo-font'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { PostProvider } from './src/context/PostContext';
+import { UserProvider } from './src/context/UserContext';
 
 import StartScreen from './src/screens/StartScreen/StartScreen'
 import LoginScreen from './src/screens/LoginScreen/LoginScreen'
@@ -29,6 +30,8 @@ import PostDetailScreen from './src/screens/Community/PostDetailScreen'
 import ScrapScreen from './src/screens/Community/ScrapScreen'
 import FeedbackScreen from './src/screens/Feedback/FeedbackScreen'
 import FeedbackDetail from './src/screens/Feedback/FeedbackDetail'
+import PostListScreen from './src/screens/Community/PostListScreen'
+import ProfileEditScreen from './src/screens/Profile/ProfileEditScreen'
 
 const Stack = createNativeStackNavigator()
 
@@ -43,7 +46,7 @@ export default function App() {
     return null
   }
 
-  return (
+  return ( <UserProvider>
     <PostProvider>
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -73,8 +76,11 @@ export default function App() {
         <Stack.Screen name="Scrap" component={ScrapScreen} />
         <Stack.Screen name="Feedback" component={FeedbackScreen} />
         <Stack.Screen name="FeedbackDetail" component={FeedbackDetail} />
+        <Stack.Screen name="PostList" component={PostListScreen} />
+        <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </PostProvider>
+  </UserProvider>
   )
 }
