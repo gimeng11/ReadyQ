@@ -36,8 +36,3 @@ ios/build/
 # Env
 .env
 .env.*
-!.env.example
-
-# Spring Boot 민감한 설정 파일
-backend/src/main/resources/application-local.yml
-backend/src/main/resources/application-prod.yml
