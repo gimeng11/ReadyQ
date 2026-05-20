@@ -63,7 +63,10 @@ export default function ProfileScreen({ navigation }) {
         {/* 설정 버튼 */}
         <View style={styles.settingRow}>
           <TouchableOpacity>
-            <Text style={styles.settingIcon}>⚙️</Text>
+            <Image
+              source={require('../../../assets/icons/setting.png')}
+              style={styles.settingIcon}
+            />
           </TouchableOpacity>
         </View>
 
