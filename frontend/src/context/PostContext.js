@@ -22,7 +22,7 @@ const DUMMY_POSTS = [
     category: 'UXUI',
     date: '02.03',
     views: 760,
-    likes: 12,
+    likes: 8,
     comments: 5,
     content: '어떤옷을 입어야할지 모르겠어요. 도와주세요!!',
     isMyPost: false,
@@ -35,7 +35,7 @@ const DUMMY_POSTS = [
     category: 'UXUI',
     date: '02.03',
     views: 760,
-    likes: 12,
+    likes: 15,
     comments: 5,
     content: '안녕하세요. 얼마전에 대기업에 합격했는데요, 많은분들이 도움이 되셨으면 해서 글을 올립니다.',
     isMyPost: false,
@@ -48,7 +48,7 @@ const DUMMY_POSTS = [
     category: 'UXUI',
     date: '02.03',
     views: 760,
-    likes: 12,
+    likes: 5,
     comments: 5,
     content: '안녕하세요. 이제 합격까지 면접만 남았는데, 면접이 너무 떨려요.',
     isMyPost: false,
@@ -75,6 +75,9 @@ export function PostProvider({ children }) {
   const [posts, setPosts] = useState(DUMMY_POSTS);
   const [comments, setComments] = useState(DUMMY_COMMENTS);
   const [scrappedIds, setScrappedIds] = useState([]);
+  const [likedIds, setLikedIds] = useState([]);
+  // 내가 댓글 단 게시글 id 목록
+  const [myCommentedPostIds, setMyCommentedPostIds] = useState([]);
 
   const addPost = (newPost) => {
     setPosts((prev) => [{ ...newPost, isMyPost: true }, ...prev]);
@@ -130,15 +133,27 @@ export function PostProvider({ children }) {
         p.id === postId ? { ...p, comments: (p.comments || 0) + 1 } : p
       )
     );
+
+    // 내가 댓글 단 게시글 추적
+    setMyCommentedPostIds((prev) =>
+      prev.includes(postId) ? prev : [...prev, postId]
+    );
   };
 
   const deleteComment = (postId, commentId) => {
-    setComments((prev) => ({
-      ...prev,
-      [postId]: prev[postId].filter((c) => c.id !== commentId),
-    }));
+    setComments((prev) => {
+      const updated = {
+        ...prev,
+        [postId]: prev[postId].filter((c) => c.id !== commentId),
+      };
+      // 내가 단 댓글이 더 없으면 목록에서 제거
+      const hasMyComment = updated[postId].some((c) => c.isMyComment);
+      if (!hasMyComment) {
+        setMyCommentedPostIds((ids) => ids.filter((id) => id !== postId));
+      }
+      return updated;
+    });
 
-    // 댓글 수 감소
     setPosts((prev) =>
       prev.map((p) =>
         p.id === postId ? { ...p, comments: Math.max((p.comments || 0) - 1, 0) } : p
@@ -154,14 +169,31 @@ export function PostProvider({ children }) {
     );
   };
 
+  const toggleLike = (id) => {
+    setLikedIds((prev) =>
+      prev.includes(id) ? prev.filter((lid) => lid !== id) : [...prev, id]
+    );
+  };
+
   const isScrapped = (id) => scrappedIds.includes(id);
+  const isLiked = (id) => likedIds.includes(id);
+
   const scrappedPosts = posts.filter((p) => scrappedIds.includes(p.id));
+  const likedPosts = posts.filter((p) => likedIds.includes(p.id));
+  const myCommentedPosts = posts.filter((p) => myCommentedPostIds.includes(p.id));
+
+  // 인기글: 좋아요 10개 이상
+  const popularPosts = posts.filter((p) => p.likes >= 10);
 
   return (
     <PostContext.Provider value={{
-      posts, addPost, deletePost, updatePost,
+      posts,
+      popularPosts,
+      addPost, deletePost, updatePost,
       addComment, deleteComment, getComments,
       toggleScrap, isScrapped, scrappedPosts,
+      toggleLike, isLiked, likedPosts,
+      myCommentedPosts,
     }}>
       {children}
     </PostContext.Provider>

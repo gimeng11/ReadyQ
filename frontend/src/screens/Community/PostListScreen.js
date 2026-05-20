@@ -11,8 +11,8 @@ import { usePosts } from '../../context/PostContext';
 import styles from './PostListStyles';
 
 export default function PostListScreen({ navigation, route }) {
-  const { type } = route.params; // 'liked' | 'myPosts' | 'myComments'
-  const { posts, scrappedPosts } = usePosts();
+  const { type } = route.params;
+  const { posts, likedPosts, myCommentedPosts } = usePosts();
 
   const getTitle = () => {
     if (type === 'liked') return '좋아요';
@@ -23,7 +23,8 @@ export default function PostListScreen({ navigation, route }) {
 
   const getData = () => {
     if (type === 'myPosts') return posts.filter((p) => p.isMyPost);
-    // 좋아요, 댓글 단 글은 추후 백엔드 연결 시 실제 데이터로 교체
+    if (type === 'liked') return likedPosts;
+    if (type === 'myComments') return myCommentedPosts;
     return [];
   };
 
@@ -31,7 +32,6 @@ export default function PostListScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 헤더 */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Image

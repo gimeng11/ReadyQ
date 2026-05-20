@@ -56,15 +56,11 @@ function PostCard({ item }) {
 export default function CommunityScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('인기');
   const [searchQuery, setSearchQuery] = useState('');
-  const { posts } = usePosts();
+  const { posts, popularPosts } = usePosts();
 
   const filteredPosts = useMemo(() => {
-    let result = posts;
-
-    // 탭 필터
-    if (activeTab !== '인기') {
-      result = result.filter((p) => p.tag === activeTab);
-    }
+    // 인기 탭은 좋아요 10개 이상만
+    let result = activeTab === '인기' ? popularPosts : posts.filter((p) => p.tag === activeTab);
 
     // 검색 필터
     if (searchQuery.trim()) {
@@ -78,7 +74,7 @@ export default function CommunityScreen({ navigation }) {
     }
 
     return result;
-  }, [posts, activeTab, searchQuery]);
+  }, [posts, popularPosts, activeTab, searchQuery]);
 
   return (
     <View style={styles.container}>
@@ -156,7 +152,9 @@ export default function CommunityScreen({ navigation }) {
               marginTop: 60,
               fontSize: 14,
             }}>
-              {searchQuery.trim() ? '검색 결과가 없어요' : '아직 게시글이 없어요'}
+              {activeTab === '인기'
+                ? '아직 인기글이 없어요 (좋아요 10개 이상)'
+                : searchQuery.trim() ? '검색 결과가 없어요' : '아직 게시글이 없어요'}
             </Text>
           }
           renderItem={({ item }) => (
