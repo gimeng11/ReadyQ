@@ -27,14 +27,16 @@ public class BoardController {
 
     //탭별 목록 조회
     @GetMapping
-    public ResponseEntity<List<BoardResponse>> getBoards(@RequestParam String boardType) {
-        return ResponseEntity.ok(boardService.getBoardsByBoardType(boardType));
+    public ResponseEntity<List<BoardResponse>> getBoards(@RequestParam String boardType, Authentication authentication) {
+        String username = (authentication != null) ? authentication.getName() : null;
+        return ResponseEntity.ok(boardService.getBoardsByBoardType(boardType, username));
     }
 
     // 게시글 상세 조회
     @GetMapping("/{id}")
-    public ResponseEntity<BoardResponse> getBoard(@PathVariable String id) {
-        return ResponseEntity.ok(boardService.getBoard(id));
+    public ResponseEntity<BoardResponse> getBoard(@PathVariable String id, Authentication authentication) {
+        String username = (authentication != null) ? authentication.getName() : null;
+        return ResponseEntity.ok(boardService.getBoard(id, username));
     }
 
     // 게시글 수정
@@ -65,5 +67,45 @@ public class BoardController {
         boolean isLiked = boardService.toggleLike(id, username);
 
         return ResponseEntity.ok(isLiked);
+    }
+
+    //스크랩
+    @PostMapping("/{id}/scraps")
+    public ResponseEntity<Boolean> toggleScrap(
+            @PathVariable String id,
+            Authentication authentication) {
+
+        String username = authentication.getName();
+        boolean isScrapped = boardService.toggleScrap(id, username);
+
+        return ResponseEntity.ok(isScrapped);
+    }
+
+    // 내가 쓴 글 조회
+    @GetMapping("/myposts")
+    public ResponseEntity<List<BoardResponse>> getMyPosts(Authentication authentication) {
+        String username = authentication.getName();
+        return ResponseEntity.ok(boardService.getMyPosts(username));
+    }
+
+    // 좋아요한 글 조회
+    @GetMapping("/liked")
+    public ResponseEntity<List<BoardResponse>> getLikedPosts(Authentication authentication) {
+        String username = authentication.getName();
+        return ResponseEntity.ok(boardService.getLikedPosts(username));
+    }
+
+    // 스크랩한 글 조회
+    @GetMapping("/scrapped")
+    public ResponseEntity<List<BoardResponse>> getScrappedPosts(Authentication authentication) {
+        String username = authentication.getName();
+        return ResponseEntity.ok(boardService.getScrappedPosts(username));
+    }
+
+    // 댓글 단 글 조회
+    @GetMapping("/commented")
+    public ResponseEntity<List<BoardResponse>> getCommentedPosts(Authentication authentication) {
+        String username = authentication.getName();
+        return ResponseEntity.ok(boardService.getCommentedPosts(username));
     }
 }

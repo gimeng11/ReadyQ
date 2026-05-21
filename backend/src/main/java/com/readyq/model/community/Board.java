@@ -33,6 +33,7 @@ public class Board {
     @Builder.Default private int likes = 0;
     @Builder.Default private int commentCount = 0;
     @Builder.Default private Set<String> likedUsers = new HashSet<>();
+    @Builder.Default private Set<String> scrappedUsers = new HashSet<>();
 
     @CreatedDate
     private LocalDateTime createdAt;
@@ -75,6 +76,21 @@ public class Board {
         } else {
             this.likedUsers.add(username);
             this.likes = this.likedUsers.size();
+            return true;
+        }
+    }
+
+    // 스크랩
+    public boolean toggleScrap(String username) {
+        if (this.scrappedUsers == null) {
+            this.scrappedUsers = new HashSet<>();
+        }
+
+        if (this.scrappedUsers.contains(username)) {
+            this.scrappedUsers.remove(username);
+            return false;
+        } else {
+            this.scrappedUsers.add(username);
             return true;
         }
     }

@@ -16,6 +16,9 @@ public class BoardResponse {
     private int views;
     private int likes;
     private int comments;
+    private boolean isLiked;
+    private boolean isScrapped;
+    private boolean isMyPost;
 
     public BoardResponse(Board board){
         this.id = board.getId();
@@ -32,5 +35,17 @@ public class BoardResponse {
         this.views = board.getViews();
         this.likes = board.getLikes();
         this.comments = board.getCommentCount();
+        this.isLiked = false;
+        this.isScrapped = false;
+        this.isMyPost = false;
+    }
+
+    public BoardResponse(Board board, String currentUsername){
+        this(board);
+        if (currentUsername != null) {
+            this.isLiked = board.getLikedUsers() != null && board.getLikedUsers().contains(currentUsername);
+            this.isScrapped = board.getScrappedUsers() != null && board.getScrappedUsers().contains(currentUsername);
+            this.isMyPost = board.getUsername().equals(currentUsername);
+        }
     }
 }

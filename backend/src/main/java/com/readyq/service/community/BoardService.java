@@ -4,7 +4,9 @@ import com.readyq.dto.community.BoardRequest;
 import com.readyq.dto.community.BoardResponse;
 import com.readyq.model.User;
 import com.readyq.model.community.Board;
+import com.readyq.model.community.Comment;
 import com.readyq.repository.BoardRepository;
+import com.readyq.repository.CommentRepository;
 import com.readyq.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,7 @@ public class BoardService {
 
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
+    private final CommentRepository commentRepository;
     // 게시글 작성
     public BoardResponse createBoard(BoardRequest request, String username) {
 
@@ -43,30 +46,30 @@ public class BoardService {
     }
 
     // 게시글 목록 조회
-    public List<BoardResponse> getBoardsByBoardType(String boardType) {
+    public List<BoardResponse> getBoardsByBoardType(String boardType, String currentUsername) {
         // 인기 탭을 눌렀을 때
         if ("인기".equals(boardType)) {
             // 좋아요가 10개 이상인 글만 가져오기
             return boardRepository.findByLikesGreaterThanEqualOrderByCreatedAtDesc(10).stream()
-                    .map(BoardResponse::new)
+                    .map(board -> new BoardResponse(board, currentUsername))
                     .collect(Collectors.toList());
         }
 
         // 일반 탭을 눌렀을 때
         return boardRepository.findByBoardTypeOrderByCreatedAtDesc(boardType).stream()
-                .map(BoardResponse::new)
+                .map(board -> new BoardResponse(board, currentUsername))
                 .collect(Collectors.toList());
     }
 
     // 게시글 상세 조회
-    public BoardResponse getBoard(String id) {
+    public BoardResponse getBoard(String id, String currentUsername) {
         Board board = boardRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("해당 게시글이 존재하지 않습니다. id=" + id));
 
         board.increaseViews(); // 조회수 1 증가
         boardRepository.save(board);
 
-        return new BoardResponse(board);
+        return new BoardResponse(board, currentUsername);
     }
 
     // 게시글 수정
@@ -107,6 +110,51 @@ public class BoardService {
         boardRepository.save(board);
 
         return isLiked;
+    }
+
+    // 스크랩
+    public boolean toggleScrap(String boardId, String username) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new IllegalArgumentException("게시글이 존재하지 않습니다."));
+
+        boolean isScrapped = board.toggleScrap(username);
+        boardRepository.save(board);
+
+        return isScrapped;
+    }
+
+    // 내가 쓴 글
+    public List<BoardResponse> getMyPosts(String username) {
+        return boardRepository.findByUsernameOrderByCreatedAtDesc(username).stream()
+                .map(board -> new BoardResponse(board, username))
+                .collect(Collectors.toList());
+    }
+
+    // 좋아요한 글
+    public List<BoardResponse> getLikedPosts(String username) {
+        return boardRepository.findByLikedUsersContainsOrderByCreatedAtDesc(username).stream()
+                .map(board -> new BoardResponse(board, username))
+                .collect(Collectors.toList());
+    }
+
+    // 스크랩한 글
+    public List<BoardResponse> getScrappedPosts(String username) {
+        return boardRepository.findByScrappedUsersContainsOrderByCreatedAtDesc(username).stream()
+                .map(board -> new BoardResponse(board, username))
+                .collect(Collectors.toList());
+    }
+
+    // 댓글 단 글
+    public List<BoardResponse> getCommentedPosts(String username) {
+        List<Comment> comments = commentRepository.findByUsername(username);
+        List<String> boardIds = comments.stream()
+                .map(Comment::getBoardId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        return boardRepository.findByIdInOrderByCreatedAtDesc(boardIds).stream()
+                .map(board -> new BoardResponse(board, username))
+                .collect(Collectors.toList());
     }
 
 }
