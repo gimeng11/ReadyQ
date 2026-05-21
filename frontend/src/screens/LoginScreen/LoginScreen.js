@@ -30,6 +30,8 @@ export default function LoginScreen({ navigation }) {
         } else {
           Alert.alert('로그인 실패', 'SNS 로그인 중 오류가 발생했습니다')
         }
+      }else{
+        console.log('로그인 세션이 성공적으로 완료되지 않음:', result.type);
       }
     } catch (e) {
       Alert.alert('로그인 실패', e.message)

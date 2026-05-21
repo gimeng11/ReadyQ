@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; // 1. useEffect 추가
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,141 +14,109 @@ import {
   ActionSheetIOS,
 } from 'react-native';
 import { usePosts } from '../../context/PostContext';
-import { BASE_URL } from '../../api/client';
-import { getToken } from '../../utils/storage';
+import * as communityApi from '../../api/community';
 
 export default function PostDetailScreen({ navigation, route }) {
   const item = route.params?.item;
-  const { toggleScrap, isScrapped, deletePost, updatePost, posts, addComment, deleteComment, getComments } = usePosts();
+  const { toggleScrap, isScrapped, deletePost, updatePost, toggleLike } = usePosts();
+  const [postDetail, setPostDetail] = useState(item);
   const [comment, setComment] = useState('');
-  const [liked, setLiked] = useState(false);
+  const [liked, setLiked] = useState(item?.isLiked || false);
   const [likesCount, setLikesCount] = useState(item?.likes || 0);
   const [commentsList, setCommentsList] = useState([]);
   const [editMode, setEditMode] = useState(false);
   const [editTitle, setEditTitle] = useState(item?.title || '');
   const [editContent, setEditContent] = useState(item?.content || '');
 
+  // 상세 데이터 가져오기 (조회수 증가 및 최신 정보)
+  const fetchDetail = async () => {
+    try {
+      const data = await communityApi.getBoardDetail(item.id);
+      setPostDetail(data);
+      setLiked(data.isLiked);
+      setLikesCount(data.likes);
+    } catch (error) {
+      console.error('상세 정보 로드 실패:', error);
+    }
+  };
+
   // 좋아요 API 연동
   const handleLike = async () => {
     try {
-      const token = await getToken();
-      if (!token) {
-        Alert.alert('알림', '로그인이 필요한 서비스입니다.');
-        return;
-      }
-
-      const response = await fetch(`${BASE_URL}/api/boards/${item.id}/likes`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        // true = 좋아요 추가됨, false = 좋아요 취소됨
-        const isLikedNow = await response.json();
-
-        if (isLikedNow) {
-          setLiked(true);
-          setLikesCount(prev => prev + 1);
-        } else {
-          setLiked(false);
-          setLikesCount(prev => prev - 1);
-        }
-      } else {
-        Alert.alert('오류', '좋아요 처리에 실패했습니다.');
-      }
+      const isLikedNow = await toggleLike(item.id);
+      setLiked(isLikedNow);
+      setLikesCount(prev => isLikedNow ? prev + 1 : prev - 1);
     } catch (error) {
-      console.error('[API 에러] 좋아요 실패:', error);
+      Alert.alert('오류', '좋아요 처리에 실패했습니다.');
     }
   };
 
   // 댓글 서버에서 가져오기
   const fetchComments = async () => {
     if (!item || !item.id) return;
-    if (item.id.toString().includes('dummy')) return;
-
     try {
-      const response = await fetch(`${BASE_URL}/api/boards/${item.id}/comments`);
-      if (response.ok) {
-        const data = await response.json();
-        setCommentsList(data); // DB에서 가져온 댓글 목록 저장
-      }
+      const data = await communityApi.getComments(item.id);
+      setCommentsList(data);
     } catch (error) {
-      console.error('[API 에러] 댓글 불러오기 실패:', error);
+      console.error('댓글 불러오기 실패:', error);
     }
   };
 
-  // 화면이 처음 켜질 때 댓글 목록 불러오기
   useEffect(() => {
+    fetchDetail();
     fetchComments();
-  }, [item]);
+  }, [item.id]);
 
-  // 댓글 작성 및 서버 전송
   const handleSubmitComment = async () => {
     if (!comment.trim()) return;
 
     try {
-      const token = await getToken();
-      if (!token) {
-        Alert.alert('알림', '로그인이 필요한 서비스입니다.');
-        return;
-      }
-
-      const response = await fetch(`${BASE_URL}/api/boards/${item.id}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          content: comment.trim(),
-          isAnonymous: false,
-        }),
+      await communityApi.createComment(item.id, {
+        content: comment.trim(),
+        isAnonymous: false,
       });
-
-      if (response.ok) {
-        setComment('');
-        fetchComments(); // 작성 후 목록 새로고침
-      } else {
-        Alert.alert('오류', '댓글 작성에 실패했습니다.');
-      }
+      setComment('');
+      fetchComments(); // 작성 후 목록 새로고침
+      fetchDetail(); // 댓글 수 갱신을 위해 상세정보도 다시 가져옴
     } catch (error) {
-      console.error('[API 에러] 댓글 작성 실패:', error);
+      Alert.alert('오류', '댓글 작성에 실패했습니다.');
     }
   };
 
-  if (!item) return null;
+  if (!postDetail) return null;
 
-  const currentItem = posts.find((p) => p.id === item.id) || item;
   const scrapped = isScrapped(item.id);
 
   const handleMorePress = () => {
-    if (!currentItem.isMyPost) return;
+    if (!postDetail.isMyPost) return;
     ActionSheetIOS.showActionSheetWithOptions(
         { options: ['수정', '삭제', '닫기'], destructiveButtonIndex: 1, cancelButtonIndex: 2 },
         (buttonIndex) => {
           if (buttonIndex === 0) {
-            setEditTitle(currentItem.title);
-            setEditContent(currentItem.content);
+            setEditTitle(postDetail.title);
+            setEditContent(postDetail.content || postDetail.preview);
             setEditMode(true);
           } else if (buttonIndex === 1) {
             Alert.alert('삭제', '게시글을 삭제하시겠습니까?', [
               { text: '취소', style: 'cancel' },
-              { text: '삭제', style: 'destructive', onPress: () => { deletePost(item.id); navigation.goBack(); } },
+              { text: '삭제', style: 'destructive', onPress: async () => { 
+                  await deletePost(item.id); 
+                  navigation.goBack(); 
+              } },
             ]);
           }
         }
     );
   };
 
-  const handleEditSubmit = () => {
+  const handleEditSubmit = async () => {
     if (!editTitle.trim() || !editContent.trim()) {
       Alert.alert('알림', '제목과 내용을 입력해주세요.');
       return;
     }
-    updatePost(item.id, { title: editTitle.trim(), content: editContent.trim() });
+    await updatePost(item.id, { title: editTitle.trim(), content: editContent.trim() });
     setEditMode(false);
+    fetchDetail();
   };
 
   if (editMode) {
@@ -166,7 +134,7 @@ export default function PostDetailScreen({ navigation, route }) {
             </View>
             <View style={styles.categoryRow}>
               <View style={styles.categoryBadge}>
-                <Text style={styles.categoryText}>{currentItem.tag}</Text>
+                <Text style={styles.categoryText}>{postDetail.tag}</Text>
               </View>
             </View>
             <TextInput
@@ -207,7 +175,7 @@ export default function PostDetailScreen({ navigation, route }) {
                     style={[styles.scrapIcon, scrapped && styles.scrapIconActive]}
                 />
               </TouchableOpacity>
-              {currentItem.isMyPost && (
+              {postDetail.isMyPost && (
                   <TouchableOpacity onPress={handleMorePress} style={styles.headerBtn}>
                     <Text style={styles.moreBtn}>⋯</Text>
                   </TouchableOpacity>
@@ -219,25 +187,25 @@ export default function PostDetailScreen({ navigation, route }) {
             {/* 게시글 본문 */}
             <View style={styles.postBody}>
               <View style={styles.tagBadge}>
-                <Text style={styles.tagText}>{currentItem.tag}</Text>
+                <Text style={styles.tagText}>{postDetail.tag}</Text>
               </View>
-              <Text style={styles.postTitle}>{currentItem.title}</Text>
+              <Text style={styles.postTitle}>{postDetail.title}</Text>
 
               {/* 작성자 정보 */}
               <View style={styles.authorRow}>
                 <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>레</Text>
+                  <Text style={styles.avatarText}>{postDetail.author ? postDetail.author[0] : '?'}</Text>
                 </View>
                 <View>
-                  <Text style={styles.authorName}>레디큐</Text>
+                  <Text style={styles.authorName}>{postDetail.author}</Text>
                   <Text style={styles.postMeta}>
-                    {currentItem.category} · {currentItem.date} · 조회 {currentItem.views}
+                    {postDetail.category} · {postDetail.date} · 조회 {postDetail.views}
                   </Text>
                 </View>
               </View>
 
               <View style={styles.divider} />
-              <Text style={styles.postContent}>{currentItem.content || currentItem.preview}</Text>
+              <Text style={styles.postContent}>{postDetail.content || postDetail.preview}</Text>
 
               {/* 액션바 (좋아요 / 댓글수) */}
               <View style={styles.actionRow}>
