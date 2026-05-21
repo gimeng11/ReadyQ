@@ -18,9 +18,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -30,8 +27,6 @@ public class InterviewService {
 
     private final InterviewSessionRepository sessionRepository;
     private final GeminiInterviewService geminiService;
-    private final ExecutorService geminiExecutor = Executors.newCachedThreadPool();
-
     @Value("${interview.video.upload.path:./uploads/interview-videos}")
     private String uploadBasePath;
 
@@ -128,23 +123,16 @@ public class InterviewService {
         }
 
         long t2 = System.currentTimeMillis();
-        CompletableFuture<String> feedbackFuture = CompletableFuture.supplyAsync(() ->
-                geminiService.generatePeriodFeedback(
-                        geminiUri,
-                        geminiMimeType,
-                        periodResult.getQuestion(),
-                        session.getInterviewerType(),
-                        null
-                ), geminiExecutor);
-
-        CompletableFuture<List<String>> followUpFuture = CompletableFuture.supplyAsync(() ->
-                geminiService.generateFollowUpQuestions(
-                        geminiUri, geminiMimeType, periodResult.getQuestion()
-                ), geminiExecutor);
-
-        String feedbackJson = feedbackFuture.join();
-        List<String> followUpQuestions = followUpFuture.join();
-        log.info("[TIMING] {}교시 피드백+꼬리질문 병렬 생성: {}ms", periodNum, System.currentTimeMillis() - t2);
+        GeminiInterviewService.PeriodAnalysisResult analysis = geminiService.generatePeriodAnalysis(
+                geminiUri,
+                geminiMimeType,
+                periodResult.getQuestion(),
+                session.getInterviewerType(),
+                null
+        );
+        String feedbackJson = analysis.feedbackJson();
+        List<String> followUpQuestions = analysis.followUpQuestions();
+        log.info("[TIMING] {}교시 피드백+꼬리질문 단일 생성: {}ms", periodNum, System.currentTimeMillis() - t2);
 
         PeriodFeedback parsedFeedback = geminiService.parsePeriodFeedback(feedbackJson);
 
@@ -227,30 +215,20 @@ public class InterviewService {
                     .map(PeriodResult::getQuestion)
                     .collect(Collectors.toList());
 
-            // 1교시 자기소개 영상이 있으면 영상 기반 질문 생성
-            PeriodResult introPeriod = session.getPeriods().stream()
-                    .filter(p -> p.getPeriodNum() == 1 && p.getGeminiFileUri() != null)
+            // 1교시 피드백 요약을 컨텍스트로 활용 (영상 재전송 없이 텍스트 기반 질문 생성)
+            String introContext = session.getPeriods().stream()
+                    .filter(p -> p.getPeriodNum() == 1 && p.getParsedFeedback() != null)
                     .findFirst()
+                    .map(p -> p.getParsedFeedback().getSummaryFeedback())
                     .orElse(null);
 
-            if (introPeriod != null) {
-                nextQuestion = geminiService.generateQuestionFromIntroVideo(
-                        introPeriod.getGeminiFileUri(),
-                        introPeriod.getGeminiMimeType() != null ? introPeriod.getGeminiMimeType() : "video/mp4",
-                        null,
-                        session.getTargetCompany(),
-                        session.getTargetJob(),
-                        session.getInterviewerType(),
-                        previousQuestions
-                );
-            } else {
-                nextQuestion = geminiService.generateNewQuestion(
-                        null,
-                        session.getTargetCompany(),
-                        session.getTargetJob(),
-                        previousQuestions
-                );
-            }
+            nextQuestion = geminiService.generateNewQuestion(
+                    null,
+                    session.getTargetCompany(),
+                    session.getTargetJob(),
+                    previousQuestions,
+                    introContext
+            );
             questionType = QuestionType.NEW;
 
         } else {
@@ -394,6 +372,7 @@ public class InterviewService {
             String extension = getFileExtension(video.getOriginalFilename());
             Path filePath = dir.resolve("period_" + periodNum + "." + extension);
             Files.write(filePath, video.getBytes());
+            log.info("영상 로컬 저장 완료: {}", filePath.toAbsolutePath());
 
             return filePath.toString();
         } catch (IOException e) {

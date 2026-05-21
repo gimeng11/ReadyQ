@@ -1,8 +1,13 @@
 package com.readyq.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.genai.Client;
+import com.google.genai.errors.ApiException;
+import com.google.genai.types.Content;
+import com.google.genai.types.GenerateContentConfig;
+import com.google.genai.types.GenerateContentResponse;
+import com.google.genai.types.Part;
 import com.readyq.model.interview.InterviewerType;
 import com.readyq.model.interview.PeriodFeedback;
 import com.readyq.model.interview.FinalFeedback;
@@ -14,9 +19,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import reactor.util.retry.Retry;
-
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -28,6 +30,7 @@ import java.util.regex.Pattern;
 public class GeminiInterviewService {
 
     public record GeminiFileRef(String uri, String mimeType) {}
+    public record PeriodAnalysisResult(String feedbackJson, List<String> followUpQuestions) {}
 
     private static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
     private static final String GEMINI_UPLOAD_URL = "https://generativelanguage.googleapis.com/upload/v1beta/files";
@@ -36,7 +39,10 @@ public class GeminiInterviewService {
     @Value("${gemini.api.key}")
     private String apiKey;
 
+    // WebClient: File upload (resumable) + waitForFileActive polling
     private final WebClient webClient;
+    // Google GenAI SDK: generateContent 호출
+    private final Client geminiClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // ───────────────────────────────────────────────
@@ -47,61 +53,103 @@ public class GeminiInterviewService {
      * 영상 파일을 Gemini File API에 업로드하고 URI와 실제 MIME 타입을 반환한다.
      */
     public GeminiFileRef uploadVideoToGemini(MultipartFile video) {
-        try {
-            String mimeType = video.getContentType() != null ? video.getContentType() : "video/mp4";
-            byte[] fileBytes = video.getBytes();
-            log.info("[TIMING] 업로드 대상 파일 크기: {}KB", fileBytes.length / 1024);
-
-            String boundary = "interview_boundary_" + System.currentTimeMillis();
-
-            String metadataStr = "{\"file\":{\"display_name\":\"" + video.getOriginalFilename() + "\"}}";
-            byte[] metadataBytes = metadataStr.getBytes(StandardCharsets.UTF_8);
-
-            String headerPart = "--" + boundary + "\r\n"
-                    + "Content-Type: application/json; charset=utf-8\r\n\r\n";
-            String filePart = "\r\n--" + boundary + "\r\n"
-                    + "Content-Type: " + mimeType + "\r\n\r\n";
-            String ending = "\r\n--" + boundary + "--";
-
-            byte[] headerBytes = headerPart.getBytes(StandardCharsets.UTF_8);
-            byte[] filePartBytes = filePart.getBytes(StandardCharsets.UTF_8);
-            byte[] endingBytes = ending.getBytes(StandardCharsets.UTF_8);
-
-            int totalLen = headerBytes.length + metadataBytes.length + filePartBytes.length
-                    + fileBytes.length + endingBytes.length;
-            byte[] body = new byte[totalLen];
-            int pos = 0;
-            System.arraycopy(headerBytes,   0, body, pos, headerBytes.length);   pos += headerBytes.length;
-            System.arraycopy(metadataBytes, 0, body, pos, metadataBytes.length); pos += metadataBytes.length;
-            System.arraycopy(filePartBytes, 0, body, pos, filePartBytes.length); pos += filePartBytes.length;
-            System.arraycopy(fileBytes,     0, body, pos, fileBytes.length);     pos += fileBytes.length;
-            System.arraycopy(endingBytes,   0, body, pos, endingBytes.length);
-
-            long tUpload = System.currentTimeMillis();
-            String responseJson = webClient.post()
-                    .uri(GEMINI_UPLOAD_URL + "?key=" + apiKey)
-                    .header("X-Goog-Upload-Protocol", "multipart")
-                    .contentType(MediaType.parseMediaType("multipart/related; boundary=" + boundary))
-                    .bodyValue(body)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-            log.info("[TIMING] Gemini HTTP 업로드: {}ms", System.currentTimeMillis() - tUpload);
-
-            JsonNode root = objectMapper.readTree(responseJson);
-            String fileUri = root.path("file").path("uri").asText();
-            String fileName = root.path("file").path("name").asText();
-
-            // 영상 처리 완료까지 대기
-            long tActive = System.currentTimeMillis();
-            waitForFileActive(fileName);
-            log.info("[TIMING] Gemini ACTIVE 대기: {}ms", System.currentTimeMillis() - tActive);
-            return new GeminiFileRef(fileUri, mimeType);
-
-        } catch (Exception e) {
-            log.error("Gemini 파일 업로드 실패", e);
-            throw new RuntimeException("영상 업로드에 실패했습니다.", e);
+        int maxAttempts = 3;
+        Exception lastException = null;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return doUploadVideoToGemini(video);
+            } catch (Exception e) {
+                lastException = e;
+                boolean retryable = isRetryableUploadError(e);
+                log.warn("Gemini 업로드 시도 {}/{} 실패 (재시도 가능: {}): {}", attempt, maxAttempts, retryable, e.getMessage());
+                if (!retryable || attempt == maxAttempts) break;
+                try {
+                    Thread.sleep(Duration.ofSeconds(3L * attempt).toMillis());
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
         }
+        log.error("Gemini 파일 업로드 최종 실패", lastException);
+        throw new RuntimeException("영상 업로드에 실패했습니다.", lastException);
+    }
+
+    private GeminiFileRef doUploadVideoToGemini(MultipartFile video) throws Exception {
+        String mimeType = video.getContentType() != null ? video.getContentType() : "video/mp4";
+        byte[] fileBytes = video.getBytes();
+        log.info("업로드 파일 크기: {}KB ({}MB)", fileBytes.length / 1024, fileBytes.length / 1024 / 1024);
+
+        long tUpload = System.currentTimeMillis();
+
+        // Step 1: resumable 세션 시작 → upload URI 수령 (새 세션 발급)
+        String metadataJson = "{\"file\":{\"display_name\":\"" + video.getOriginalFilename() + "\"}}";
+        String uploadUri = webClient.post()
+                .uri(GEMINI_UPLOAD_URL + "?key=" + apiKey)
+                .header("X-Goog-Upload-Protocol", "resumable")
+                .header("X-Goog-Upload-Command", "start")
+                .header("X-Goog-Upload-Header-Content-Length", String.valueOf(fileBytes.length))
+                .header("X-Goog-Upload-Header-Content-Type", mimeType)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(metadataJson)
+                .retrieve()
+                .onStatus(status -> status.isError(),
+                        resp -> resp.bodyToMono(String.class).defaultIfEmpty("")
+                                .doOnNext(b -> log.error("Gemini 업로드 Step1 {} body: {}", resp.statusCode().value(), b))
+                                .flatMap(b -> reactor.core.publisher.Mono.error(
+                                        new org.springframework.web.reactive.function.client.WebClientResponseException(
+                                                resp.statusCode().value(), resp.statusCode().toString(), null, b.getBytes(), null))))
+                .toBodilessEntity()
+                .mapNotNull(resp -> resp.getHeaders().getFirst("X-Goog-Upload-URL"))
+                .block();
+
+        if (uploadUri == null) {
+            throw new RuntimeException("Gemini resumable upload URI를 받지 못했습니다.");
+        }
+
+        // Step 2: 파일 데이터 전송 + finalize (retryWhen 없음 — 실패 시 외부 루프에서 Step 1부터 재시도)
+        String responseJson = webClient.post()
+                .uri(uploadUri)
+                .header("Content-Length", String.valueOf(fileBytes.length))
+                .header("X-Goog-Upload-Offset", "0")
+                .header("X-Goog-Upload-Command", "upload, finalize")
+                .bodyValue(fileBytes)
+                .retrieve()
+                .onStatus(status -> status.isError(),
+                        clientResponse -> clientResponse.bodyToMono(String.class)
+                                .defaultIfEmpty("")
+                                .doOnNext(errBody -> log.error("Gemini 업로드 Step2 {} 응답: {}", clientResponse.statusCode().value(), errBody))
+                                .flatMap(errBody -> reactor.core.publisher.Mono.error(
+                                        new org.springframework.web.reactive.function.client.WebClientResponseException(
+                                                clientResponse.statusCode().value(), clientResponse.statusCode().toString(), null, errBody.getBytes(), null))))
+                .bodyToMono(String.class)
+                .block();
+        log.info("[TIMING] Gemini resumable 업로드: {}ms", System.currentTimeMillis() - tUpload);
+
+        if (responseJson == null || responseJson.isBlank()) {
+            throw new RuntimeException("Gemini 파일 업로드 응답이 비어 있습니다.");
+        }
+        JsonNode root = objectMapper.readTree(responseJson);
+        String fileUri = root.path("file").path("uri").asText();
+        String fileName = root.path("file").path("name").asText();
+
+        long tActive = System.currentTimeMillis();
+        waitForFileActive(fileName);
+        log.info("[TIMING] Gemini ACTIVE 대기: {}ms", System.currentTimeMillis() - tActive);
+        return new GeminiFileRef(fileUri, mimeType);
+    }
+
+    private boolean isRetryableUploadError(Throwable e) {
+        Throwable cause = e;
+        while (cause != null) {
+            if (cause instanceof org.springframework.web.reactive.function.client.WebClientResponseException ex) {
+                int status = ex.getStatusCode().value();
+                String body = ex.getResponseBodyAsString();
+                return status == 503 || body.contains("Upload has already been terminated");
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 
     /**
@@ -275,6 +323,108 @@ public class GeminiInterviewService {
     }
 
     // ───────────────────────────────────────────────
+    // 3b. 교시 피드백 + 꼬리질문 단일 호출
+    // ───────────────────────────────────────────────
+
+    /**
+     * 영상 분석 1번 호출로 교시 피드백 JSON과 꼬리질문 5개를 함께 반환한다.
+     */
+    public PeriodAnalysisResult generatePeriodAnalysis(String fileUri,
+                                                        String mimeType,
+                                                        String question,
+                                                        InterviewerType interviewerType,
+                                                        String coverLetter) {
+        String interviewerDescription = getInterviewerDescription(interviewerType);
+        String coverLetterPart = (coverLetter != null && !coverLetter.isBlank())
+                ? "지원자 자기소개서: " + coverLetter + "\n"
+                : "";
+        String prompt = String.format(
+                "%s\n\n" +
+                "질문: %s\n" +
+                "%s\n" +
+                "위 영상에서 지원자의 답변을 분석하여 다음 항목을 0~100점으로 평가하세요.\n\n" +
+
+                "[speechSpeed - 말하기 속도]\n" +
+                "발화 속도를 SPM(분당 음절 수)으로 추정하여 평가하세요.\n" +
+                "- 이상적: 265~350 SPM / 허용: 250~410 SPM\n" +
+                "- 250 미만: 너무 느림 / 410 초과: 너무 빠름 → 감점\n\n" +
+
+                "[fillerWords - 추임새/말더듬]\n" +
+                "'음', '어', '그', '저' 등 추임새·말더듬 횟수를 평가하세요.\n" +
+                "- 1분 이상: 분당 5회 이하 양호 / 6~11회 주의 / 12회 이상 감점\n" +
+                "- 1분 미만: 5초당 1회 이상 감점\n\n" +
+
+                "[eyeContact - 비언어적 태도]\n" +
+                "눈맞춤·미소·고개끄덕임·자세를 평가하세요.\n" +
+                "중요도 순서: 말하고듣는태도 > 얼굴표정 > 시선처리 > 자세\n\n" +
+
+                "[voiceVolume - 목소리 전달력]\n" +
+                "억양 변화폭·음도·강도를 종합 평가하세요.\n" +
+                "- 남성: 억양변화 90Hz 이상, 음도 111~130Hz, 강도 67~72dB\n" +
+                "- 여성: 억양변화 121Hz 이상, 음도 231~250Hz, 강도 67~72dB\n" +
+                "- 강도 55dB 이하 또는 단조로운 억양 → 감점\n\n" +
+
+                "[logicStructure - 논리구조력]\n" +
+                "주장-근거-사례 구조 및 결론 비약 여부를 평가하세요.\n\n" +
+
+                "[answerClarity - 답변명확성]\n" +
+                "질문 의도 적합성 및 핵심 메시지 전달력을 평가하세요.\n\n" +
+
+                "또한 이 질문에 자연스럽게 이어질 꼬리질문 5개를 생성하세요.\n\n" +
+
+                "preamble 없이 순수 JSON만 반환 (마크다운 코드블록 없이):\n" +
+                "{\n" +
+                "  \"feedback\": {\n" +
+                "    \"scores\": {\"logicStructure\":점수,\"speechSpeed\":점수,\"voiceVolume\":점수,\"eyeContact\":점수,\"fillerWords\":점수,\"answerClarity\":점수},\n" +
+                "    \"overallScore\": 종합점수,\n" +
+                "    \"summaryFeedback\": \"한 문장 요약\",\n" +
+                "    \"detailFeedback\": {\"logicStructure\":\"피드백\",\"speechSpeed\":\"SPM 수치 포함\",\"voiceVolume\":\"수치 포함\",\"eyeContact\":\"피드백\",\"fillerWords\":\"횟수 포함\",\"answerClarity\":\"피드백\"},\n" +
+                "    \"improvementTips\": [\"팁1\",\"팁2\",\"팁3\"]\n" +
+                "  },\n" +
+                "  \"followUpQuestions\": [\"질문1\",\"질문2\",\"질문3\",\"질문4\",\"질문5\"]\n" +
+                "}",
+                interviewerDescription, question, coverLetterPart);
+
+        try {
+            long t = System.currentTimeMillis();
+            String raw = callGeminiWithVideo(fileUri, mimeType, prompt);
+            log.info("[TIMING] generatePeriodAnalysis Gemini 호출: {}ms", System.currentTimeMillis() - t);
+            String combinedJson = extractJson(raw);
+
+            JsonNode root = objectMapper.readTree(combinedJson);
+            String feedbackJson = objectMapper.writeValueAsString(root.path("feedback"));
+
+            List<String> followUpQuestions = new ArrayList<>();
+            JsonNode questionsNode = root.path("followUpQuestions");
+            if (questionsNode.isArray()) {
+                questionsNode.forEach(q -> followUpQuestions.add(q.asText()));
+            }
+            if (followUpQuestions.isEmpty()) {
+                followUpQuestions.addAll(defaultFollowUpQuestions());
+            }
+            return new PeriodAnalysisResult(feedbackJson, followUpQuestions);
+
+        } catch (Exception e) {
+            log.warn("Gemini 피드백+꼬리질문 생성 실패 — fallback 사용: {}", e.getMessage());
+            String feedbackJson = "{\"scores\":{\"logicStructure\":70,\"speechSpeed\":70,\"voiceVolume\":70,\"eyeContact\":70,\"fillerWords\":70,\"answerClarity\":70}," +
+                    "\"overallScore\":70,\"summaryFeedback\":\"AI 분석을 일시적으로 사용할 수 없습니다. 답변을 잘 하셨습니다.\"," +
+                    "\"detailFeedback\":{\"logicStructure\":\"분석 불가\",\"speechSpeed\":\"분석 불가\",\"voiceVolume\":\"분석 불가\",\"eyeContact\":\"분석 불가\",\"fillerWords\":\"분석 불가\",\"answerClarity\":\"분석 불가\"}," +
+                    "\"improvementTips\":[\"다음 답변에서도 자신감 있게 말해보세요.\",\"핵심을 먼저 말하는 두괄식 구조를 활용해 보세요.\",\"구체적인 사례를 들어 답변을 풍부하게 만들어 보세요.\"]}";
+            return new PeriodAnalysisResult(feedbackJson, defaultFollowUpQuestions());
+        }
+    }
+
+    private List<String> defaultFollowUpQuestions() {
+        return new ArrayList<>(List.of(
+            "이전 답변에서 더 자세히 설명해 주실 수 있나요?",
+            "그렇게 생각하신 근거가 있나요?",
+            "구체적인 사례를 들어 주실 수 있나요?",
+            "다른 방법은 고려해 보셨나요?",
+            "그 경험에서 무엇을 배우셨나요?"
+        ));
+    }
+
+    // ───────────────────────────────────────────────
     // 4. 꼬리질문 생성
     // ───────────────────────────────────────────────
 
@@ -332,15 +482,26 @@ public class GeminiInterviewService {
                                       String targetCompany,
                                       String targetJob,
                                       List<String> previousQuestions) {
+        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, null);
+    }
+
+    public String generateNewQuestion(String coverLetter,
+                                      String targetCompany,
+                                      String targetJob,
+                                      List<String> previousQuestions,
+                                      String introContext) {
         String prevQuestionsStr = previousQuestions.isEmpty() ? "없음" : String.join("\n- ", previousQuestions);
         String tc = (targetCompany != null && !targetCompany.isBlank()) ? targetCompany : "지원 기업";
         String tj = (targetJob != null && !targetJob.isBlank()) ? targetJob : "지원 직무";
+        String contextPart = (introContext != null && !introContext.isBlank())
+                ? "지원자 자기소개 요약: " + introContext + "\n"
+                : "";
         String prompt = String.format(
-                "%s 회사의 %s 직무 면접에서 사용할 새로운 질문을 1개 생성해주세요.\n" +
+                "%s%s 회사의 %s 직무 면접에서 사용할 새로운 질문을 1개 생성해주세요.\n" +
                 "이미 사용한 질문 (중복 금지):\n- %s\n\n" +
                 "직무 역량, 문제해결 경험, 협업 능력 중 한 가지를 중심으로 " +
                 "질문 한 문장만 반환하세요. 다른 텍스트는 포함하지 마세요.",
-                tc, tj, prevQuestionsStr);
+                contextPart, tc, tj, prevQuestionsStr);
 
         try {
             return callGeminiText(prompt).trim();
@@ -353,7 +514,6 @@ public class GeminiInterviewService {
                 "5년 후 본인의 커리어 목표는 무엇인가요?",
                 "가장 어려웠던 문제를 해결한 경험을 말씀해 주세요."
             );
-            // 이전 질문 목록과 겹치지 않는 것 선택
             return fallbackQuestions.stream()
                 .filter(q -> !previousQuestions.contains(q))
                 .findFirst()
@@ -405,7 +565,6 @@ public class GeminiInterviewService {
             return extractJson(raw);
         } catch (Exception e) {
             log.warn("Gemini 최종 피드백 생성 실패 — 기본 피드백 사용: {}", e.getMessage());
-            // periodFeedbackJsonList에서 점수 평균 계산
             int total = 0;
             List<Integer> scores = new ArrayList<>();
             for (String pfJson : periodFeedbackJsonList) {
@@ -433,127 +592,88 @@ public class GeminiInterviewService {
     }
 
     // ───────────────────────────────────────────────
-    // Private helpers
+    // Private helpers — Google GenAI SDK 호출
     // ───────────────────────────────────────────────
 
     /**
-     * 영상 URI 없이 텍스트만으로 Gemini 호출
+     * 텍스트만으로 Gemini 호출. 429/503 시 최대 3회 재시도.
      */
     private String callGeminiText(String prompt) {
-        try {
-            Map<String, Object> request = Map.of(
-                    "contents", List.of(
-                            Map.of("parts", List.of(Map.of("text", prompt)))
-                    )
-            );
-
-            String body = objectMapper.writeValueAsString(request);
-
-            String response = webClient.post()
-                    .uri(GEMINI_BASE_URL + "/models/" + GEMINI_MODEL + ":generateContent?key=" + apiKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(body)
-                    .retrieve()
-                    .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
-                            clientResponse -> clientResponse.bodyToMono(String.class)
-                                    .doOnNext(errBody -> log.warn("Gemini {} 응답 본문: {}", clientResponse.statusCode().value(), errBody))
-                                    .flatMap(errBody -> reactor.core.publisher.Mono.error(
-                                            new org.springframework.web.reactive.function.client.WebClientResponseException(
-                                                    clientResponse.statusCode().value(), clientResponse.statusCode().toString(), null, errBody.getBytes(), null))))
-                    .bodyToMono(String.class)
-                    .retryWhen(Retry.backoff(3, Duration.ofSeconds(2))
-                            .maxBackoff(Duration.ofSeconds(10))
-                            .filter(e -> {
-                                if (!(e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ex)) return false;
-                                int status = ex.getStatusCode().value();
-                                if (status == 503) return true;
-                                if (status != 429) return false;
-                                // 월 한도 초과(RESOURCE_EXHAUSTED)는 재시도 불필요
-                                String errBody = ex.getResponseBodyAsString();
-                                return !errBody.contains("RESOURCE_EXHAUSTED") && !errBody.contains("spending cap");
-                            })
-                            .doBeforeRetry(rs -> log.warn("Gemini 429/503 — 재시도 ({}/3)", rs.totalRetries() + 1)))
-                    .block();
-
-            return extractTextFromResponse(response);
-        } catch (Exception e) {
-            String safeMsg = e.getMessage() != null ? e.getMessage().replace(apiKey, "***") : "unknown";
-            log.error("Gemini 텍스트 호출 실패: {}", safeMsg);
-            throw new RuntimeException("Gemini API 호출에 실패했습니다.", e);
+        int maxAttempts = 4;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                GenerateContentResponse response = geminiClient.models.generateContent(
+                        GEMINI_MODEL, prompt, (GenerateContentConfig) null);
+                String text = response.text();
+                if (text == null || text.isBlank()) throw new RuntimeException("Gemini 응답 텍스트가 비어 있습니다.");
+                return text;
+            } catch (ApiException e) {
+                int status = e.code();
+                String msg = e.getMessage() != null ? e.getMessage() : "";
+                boolean retryable = (status == 503) ||
+                        (status == 429 && !msg.contains("RESOURCE_EXHAUSTED") && !msg.contains("spending cap"));
+                if (!retryable || attempt == maxAttempts) {
+                    log.error("Gemini 텍스트 호출 최종 실패 (HTTP {}): {}", status, msg);
+                    throw new RuntimeException("Gemini API 호출에 실패했습니다.", e);
+                }
+                log.warn("Gemini {} — 재시도 ({}/{})", status, attempt, maxAttempts - 1);
+                sleepForRetry(attempt);
+            } catch (Exception e) {
+                if (attempt == maxAttempts) {
+                    log.error("Gemini 텍스트 호출 실패: {}", e.getMessage());
+                    throw new RuntimeException("Gemini API 호출에 실패했습니다.", e);
+                }
+                log.warn("Gemini 호출 오류 — 재시도 ({}/{}): {}", attempt, maxAttempts - 1, e.getMessage());
+                sleepForRetry(attempt);
+            }
         }
+        throw new RuntimeException("Gemini API 호출에 실패했습니다.");
     }
 
     /**
-     * 영상 fileUri를 포함하여 Gemini 호출
+     * 영상 fileUri를 포함하여 Gemini 호출. 429/503 시 최대 3회 재시도.
      */
     private String callGeminiWithVideo(String fileUri, String mimeType, String prompt) {
-        try {
-            Map<String, Object> filePart = Map.of(
-                    "file_data", Map.of(
-                            "mime_type", mimeType,
-                            "file_uri", fileUri
-                    )
-            );
-            Map<String, Object> textPart = Map.of("text", prompt);
-
-            Map<String, Object> request = Map.of(
-                    "contents", List.of(
-                            Map.of("parts", List.of(filePart, textPart))
-                    )
-            );
-
-            String body = objectMapper.writeValueAsString(request);
-
-            String response = webClient.post()
-                    .uri(GEMINI_BASE_URL + "/models/" + GEMINI_MODEL + ":generateContent?key=" + apiKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(body)
-                    .retrieve()
-                    .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
-                            clientResponse -> clientResponse.bodyToMono(String.class)
-                                    .doOnNext(errBody -> log.warn("Gemini(video) {} 응답 본문: {}", clientResponse.statusCode().value(), errBody))
-                                    .flatMap(errBody -> reactor.core.publisher.Mono.error(
-                                            new org.springframework.web.reactive.function.client.WebClientResponseException(
-                                                    clientResponse.statusCode().value(), clientResponse.statusCode().toString(), null, errBody.getBytes(), null))))
-                    .bodyToMono(String.class)
-                    .retryWhen(Retry.backoff(3, Duration.ofSeconds(2))
-                            .maxBackoff(Duration.ofSeconds(10))
-                            .filter(e -> {
-                                if (!(e instanceof org.springframework.web.reactive.function.client.WebClientResponseException ex)) return false;
-                                int status = ex.getStatusCode().value();
-                                if (status == 503) return true;
-                                if (status != 429) return false;
-                                // 월 한도 초과(RESOURCE_EXHAUSTED)는 재시도 불필요
-                                String errBody = ex.getResponseBodyAsString();
-                                return !errBody.contains("RESOURCE_EXHAUSTED") && !errBody.contains("spending cap");
-                            })
-                            .doBeforeRetry(rs -> log.warn("Gemini 429/503 — 재시도 ({}/3)", rs.totalRetries() + 1)))
-                    .block();
-
-            return extractTextFromResponse(response);
-        } catch (Exception e) {
-            String safeMsg = e.getMessage() != null ? e.getMessage().replace(apiKey, "***") : "unknown";
-            log.error("Gemini 영상 포함 호출 실패: {}", safeMsg);
-            throw new RuntimeException("Gemini API 호출에 실패했습니다.", e);
+        int maxAttempts = 4;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                Content content = Content.fromParts(
+                        Part.fromUri(fileUri, mimeType),
+                        Part.builder().text(prompt).build()
+                );
+                GenerateContentResponse response = geminiClient.models.generateContent(
+                        GEMINI_MODEL, content, (GenerateContentConfig) null);
+                String text = response.text();
+                if (text == null || text.isBlank()) throw new RuntimeException("Gemini 응답 텍스트가 비어 있습니다.");
+                return text;
+            } catch (ApiException e) {
+                int status = e.code();
+                String msg = e.getMessage() != null ? e.getMessage() : "";
+                boolean retryable = (status == 503) ||
+                        (status == 429 && !msg.contains("RESOURCE_EXHAUSTED") && !msg.contains("spending cap"));
+                if (!retryable || attempt == maxAttempts) {
+                    log.error("Gemini 영상 포함 호출 최종 실패 (HTTP {}): {}", status, msg);
+                    throw new RuntimeException("Gemini API 호출에 실패했습니다.", e);
+                }
+                log.warn("Gemini {} — 재시도 ({}/{})", status, attempt, maxAttempts - 1);
+                sleepForRetry(attempt);
+            } catch (Exception e) {
+                if (attempt == maxAttempts) {
+                    log.error("Gemini 영상 포함 호출 실패: {}", e.getMessage());
+                    throw new RuntimeException("Gemini API 호출에 실패했습니다.", e);
+                }
+                log.warn("Gemini 호출 오류 — 재시도 ({}/{}): {}", attempt, maxAttempts - 1, e.getMessage());
+                sleepForRetry(attempt);
+            }
         }
+        throw new RuntimeException("Gemini API 호출에 실패했습니다.");
     }
 
-    /**
-     * Gemini generateContent 응답에서 텍스트 부분만 추출
-     */
-    private String extractTextFromResponse(String responseJson) {
+    private void sleepForRetry(int attempt) {
         try {
-            JsonNode root = objectMapper.readTree(responseJson);
-            return root.path("candidates")
-                       .path(0)
-                       .path("content")
-                       .path("parts")
-                       .path(0)
-                       .path("text")
-                       .asText();
-        } catch (Exception e) {
-            log.error("Gemini 응답 파싱 실패. responseJson={}", responseJson, e);
-            throw new RuntimeException("Gemini 응답을 파싱할 수 없습니다.", e);
+            Thread.sleep(Math.min(2000L * attempt, 10000L));
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -564,14 +684,12 @@ public class GeminiInterviewService {
     String extractJson(String text) {
         if (text == null || text.isBlank()) return "{}";
 
-        // 마크다운 코드블록 제거
         Pattern codeBlock = Pattern.compile("```(?:json)?\\s*([\\s\\S]*?)```");
         Matcher matcher = codeBlock.matcher(text);
         if (matcher.find()) {
             return matcher.group(1).trim();
         }
 
-        // 중괄호 기준으로 JSON 범위 추출
         int start = text.indexOf('{');
         int end   = text.lastIndexOf('}');
         if (start != -1 && end != -1 && end > start) {

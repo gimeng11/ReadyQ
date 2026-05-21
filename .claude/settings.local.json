@@ -26,7 +26,18 @@
       "PowerShell(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\" -Force | Select-Object Name, @{Name=\"Type\"; Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}} | Format-Table -AutoSize)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\\\\frontend\" -Recurse -Force | Where-Object {$_.PSIsContainer -eq $false} | Select-Object @{Name=\"Path\"; Expression={$_.FullName -replace [regex]::Escape\\(\"C:\\\\프로젝트\\\\ReadyQ\\\\\"\\)}} | Format-Table -AutoSize)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\\\\backend\\\\src\" -Recurse -Force | Select-Object @{Name=\"Path\"; Expression={$_.FullName -replace [regex]::Escape\\(\"C:\\\\프로젝트\\\\ReadyQ\\\\backend\\\\src\\\\\"\\)}} | Sort-Object Path | Format-Table -AutoSize)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(./gradlew compileJava)",
+      "Bash(./gradlew dependencies *)",
+      "Bash(jar tf *)",
+      "Bash(grep -E \"\\\\.class$\")",
+      "Bash(grep -v \"\\\\$\")",
+      "Bash(unzip -l ~/.gradle/caches/modules-2/files-2.1/com.google.genai/google-genai/0.7.0/a9108eb47cb3f5500ac1569d9f20218adf3c440b/google-genai-0.7.0.jar)",
+      "Bash(awk '{print $4}')",
+      "Bash(unzip -Z1 ~/.gradle/caches/modules-2/files-2.1/com.google.genai/google-genai/0.7.0/a9108eb47cb3f5500ac1569d9f20218adf3c440b/google-genai-0.7.0.jar)",
+      "Bash(grep \"\\\\.class$\")",
+      "Bash(python3 *)",
+      "Bash(python *)"
     ]
   }
 }

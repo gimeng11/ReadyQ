@@ -35,8 +35,10 @@ dependencies {
     testImplementation 'org.springframework.security:spring-security-test'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
     implementation 'me.paulschwarz:spring-dotenv:4.0.0'
-    // WebClient (Gemini API 호출용 - HTTP 클라이언트만 사용)
+    // WebClient (Spring Security OAuth2 등 다른 컴포넌트에서 사용)
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    // Google Gen AI Java SDK (Gemini API 공식 클라이언트)
+    implementation 'com.google.genai:google-genai:0.7.0'
 }
 
 tasks.named('test') {
