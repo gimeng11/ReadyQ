@@ -26,7 +26,7 @@ export function UserProvider({ children }) {
         career: data.career || '',
       });
     } catch (e) {
-      console.error('유저 정보 로드 실패:', e);
+      console.log('유저 정보 로드 실패 (로그인 필요):', e.message);
     }
   };
 
