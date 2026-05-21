@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(pip3 install:*)",
+      "Bash(cp \"C:/프로젝트/ReadyQ/backend/src/main/resources/application.yml\" /tmp/clean_application.yml)",
+      "Read(//tmp/**)",
+      "Bash(npm install:*)",
+      "Bash(npx expo:*)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\" -Force | ForEach-Object { $_ | Select-Object -Property Name, @{Name=\"Type\";Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}} } | Format-Table -AutoSize)",
+      "Bash(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\\\\backend\\\\src\\\\main\\\\java\\\\com\\\\readyq\" -Recurse -Filter \"*.java\")",
+      "Bash(Select-Object FullName)",
+      "Bash(Sort-Object FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\" -Force)",
+      "Bash(Select-Object Name, FullName)",
+      "Bash(Format-Table -AutoSize)",
+      "PowerShell(Head *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\" -Recurse -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -First 20)",
+      "Bash(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\" -Directory)",
+      "Bash(Select-Object Name)",
+      "PowerShell(ls \"C:\\\\프로젝트\\\\ReadyQ\" | Where-Object { $_.PSIsContainer })",
+      "PowerShell(head *)",
+      "PowerShell(ls \"C:\\\\프로젝트\\\\ReadyQ\" -Recurse | Where-Object { -not $_.PSIsContainer } | Select-Object -First 50 FullName)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\" -Force | Select-Object Name, @{Name=\"Type\"; Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}} | Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\\\\frontend\" -Recurse -Force | Where-Object {$_.PSIsContainer -eq $false} | Select-Object @{Name=\"Path\"; Expression={$_.FullName -replace [regex]::Escape\\(\"C:\\\\프로젝트\\\\ReadyQ\\\\\"\\)}} | Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\프로젝트\\\\ReadyQ\\\\backend\\\\src\" -Recurse -Force | Select-Object @{Name=\"Path\"; Expression={$_.FullName -replace [regex]::Escape\\(\"C:\\\\프로젝트\\\\ReadyQ\\\\backend\\\\src\\\\\"\\)}} | Sort-Object Path | Format-Table -AutoSize)",
+      "Bash(git *)"
+    ]
+  }
+}

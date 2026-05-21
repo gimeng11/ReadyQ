@@ -1,0 +1,169 @@
+=====================================
+ ReadyQ 백엔드 설명
+=====================================
+
+[ 기술 스택 ]
+- Spring Boot 3.2
+- Gradle
+- MongoDB (spring-data-mongodb)
+- JWT (jjwt 0.12.3)
+- Lombok
+- Spring Security
+- SDK : 임시로 JDK 17 사용
+
+-------------------------------------
+[ 폴더 구조 ]
+-------------------------------------
+
+config/
+  CorsConfig.java           - CORS 전역 설정 (/api/** 허용)
+
+controller/
+  AuthController.java       - API 엔드포인트 정의
+
+dto/
+  LoginRequest.java         - 로그인 요청 (username, password)
+  LoginResponse.java        - 로그인 응답 (token, username, nickname, role)
+  SignUpRequest.java        - 회원가입 요청 (nickname, email, username, password, phone, jobTitle, career)
+  SmsRequest.java           - SMS 인증코드 발송 요청 (phone)
+  SmsVerifyRequest.java     - SMS 인증코드 확인 요청 (phone, code)
+  EmailRequest.java         - 이메일 인증코드 발송 요청 (email)
+  FindUsernameRequest.java  - 아이디 찾기 요청 (email, code)
+  FindPasswordVerifyRequest.java - 비밀번호 찾기 본인확인 요청 (username, email, code)
+  ResetPasswordRequest.java - 비밀번호 재설정 요청 (resetToken, newPassword)
+
+exception/
+  GlobalExceptionHandler.java  - 전역 에러 처리 (validation 오류, 비즈니스 오류 등)
+
+model/
+  User.java                 - MongoDB에 저장되는 유저 데이터 구조
+                              (id, username, password, nickname, email, phone,
+                               role, jobTitle, career, provider, providerId, createdAt)
+
+repository/
+  UserRepository.java       - MongoDB 쿼리 (username/email/phone으로 유저 조회, 중복 확인)
+
+security/
+  JwtUtil.java                    - JWT 토큰 생성 및 검증
+  JwtAuthFilter.java              - 요청마다 JWT 토큰 확인하는 필터
+  SecurityConfig.java             - Spring Security 설정 (인증 없이 접근 가능한 경로 지정)
+  OAuth2UserService.java          - SNS 로그인 시 유저 정보 조회 및 자동 회원가입 처리
+  OAuth2SuccessHandler.java       - OAuth2 인증 성공 후 JWT 발급 및 앱으로 리다이렉트
+  OAuthRedirectCookieFilter.java  - SNS 로그인 시 앱 딥링크 URI를 쿠키에 임시 저장하는 필터
+
+service/
+  AuthService.java          - 로그인, 회원가입, 아이디/비밀번호 찾기 로직
+  SmsService.java           - SMS 인증코드 생성, 발송, 검증 (5분 유효)
+  EmailService.java         - 이메일 인증코드 생성, 발송, 검증 + 비밀번호 재설정 토큰 관리
+
+-------------------------------------
+[ API 목록 ]
+-------------------------------------
+
+POST   /api/auth/login                 로그인 → JWT 토큰 반환
+POST   /api/auth/signup                회원가입
+POST   /api/auth/sms/send             SMS 인증코드 발송 (회원가입 전화번호 인증)
+POST   /api/auth/sms/verify           SMS 인증코드 확인
+POST   /api/auth/email/send           이메일 인증코드 발송 (아이디/비번 찾기)
+POST   /api/auth/find-username        아이디 찾기 (이메일 OTP 인증 후 반환)
+POST   /api/auth/find-password/verify 비밀번호 찾기 본인확인 → resetToken 반환
+POST   /api/auth/reset-password       비밀번호 재설정 (resetToken + 새 비밀번호)
+
+GET    /oauth2/authorization/kakao    카카오 SNS 로그인 시작 (브라우저/앱에서 직접 접근)
+GET    /oauth2/authorization/naver    네이버 SNS 로그인 시작
+GET    /oauth2/authorization/google   구글 SNS 로그인 시작
+  ※ 위 3개는 앱에서 app_redirect 쿼리 파라미터로 딥링크 URI를 전달해야 함
+     예) /oauth2/authorization/kakao?app_redirect=readyq://oauth2/redirect
+  ※ 인증 성공 시 → {app_redirect}?token={JWT} 로 리다이렉트
+
+-------------------------------------
+[ SMS 인증 방식 ]
+-------------------------------------
+
+현재는 mock 모드로 실제 문자 발송 없이 콘솔(로그)에 인증코드 출력.
+인증코드는 6자리 숫자이며 5분 후 자동 만료.
+
+실제 문자 발송이 필요하면:
+  - application.yml에서 sms.mock: false 로 변경
+  - SmsService.java 안의 sendViaNcp() 등 실제 SMS API 연동 코드 작성
+  - NCP SENS 또는 Twilio 등 사용 가능
+
+-------------------------------------
+[ 이메일 인증 방식 ]
+-------------------------------------
+
+아이디 찾기 / 비밀번호 찾기에서 이메일 OTP를 사용.
+현재는 mock 모드로 실제 이메일 발송 없이 콘솔(로그)에 인증코드 출력.
+인증코드는 6자리 숫자이며 5분 후 자동 만료.
+
+비밀번호 찾기 흐름:
+  1. 이메일 인증코드 발송 + 검증
+  2. 본인확인 성공 시 resetToken 발급 (10분 유효)
+  3. resetToken으로 새 비밀번호 설정
+
+실제 이메일 발송이 필요하면:
+  - application.yml에서 email.mock: false 로 변경
+  - Spring Mail 의존성 추가 후 EmailService.java 내 발송 로직 구현
+
+-------------------------------------
+[ SNS 로그인 연동 방식 ]
+-------------------------------------
+
+앱(React Native) ↔ 백엔드 SNS 로그인 흐름:
+
+1. 앱에서 카카오/네이버/구글 버튼 클릭
+2. expo-linking으로 앱의 딥링크 URI 생성
+   (Expo Go: exp://192.168.x.x:8081/--/oauth2/redirect)
+   (standalone 빌드: readyq://oauth2/redirect)
+3. expo-web-browser로 아래 URL 열기:
+   http://{서버IP}:8080/oauth2/authorization/{provider}?app_redirect={딥링크}
+4. OAuthRedirectCookieFilter가 app_redirect를 쿠키에 저장
+5. 카카오/네이버/구글에서 로그인 및 동의
+6. OAuth2SuccessHandler에서 JWT 생성 후 쿠키의 app_redirect로 리다이렉트:
+   {딥링크}?token={JWT}
+7. 앱에서 URL 파싱 → token 추출 → AsyncStorage 저장 → Home 화면 이동
+
+지원 provider: kakao, naver, google
+SNS 계정이 DB에 없으면 자동으로 회원가입 처리됨 (OAuth2UserService)
+
+-------------------------------------
+[ 실행 방법 ]
+-------------------------------------
+
+1. application.yml에서 jwt.secret 값을 안전한 문자열로 변경
+2. 아래 명령어 실행:
+
+   Windows: gradlew.bat bootRun
+   Mac/Linux: ./gradlew bootRun
+
+서버 포트: 8080
+
+-------------------------------------
+[ MongoDB 연결 정보 ]
+-------------------------------------
+
+MongoDB Atlas (클라우드) 사용 중.
+DB명: ReadyQ
+클러스터: cluster0.b72qlr9.mongodb.net
+
+※ 주의: application.yml에 비밀번호가 평문으로 저장되어 있음.
+   Git에 올릴 경우 비밀번호 노출 위험 → .gitignore에 application.yml 추가 권장
+
+-------------------------------------
+[ JWT 인증 방식 ]
+-------------------------------------
+
+로그인 성공 시 토큰 발급.
+이후 인증이 필요한 API 요청 시 헤더에 아래와 같이 포함:
+
+  Authorization: Bearer {토큰값}
+
+토큰 유효기간: 24시간
+
+-------------------------------------
+[ OTP 유효시간 ]
+-------------------------------------
+
+SMS 인증코드:         5분
+이메일 인증코드:      5분
+비밀번호 재설정 토큰: 10분

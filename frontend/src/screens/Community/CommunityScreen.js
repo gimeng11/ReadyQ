@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -6,10 +7,12 @@ import {
   TouchableOpacity,
   Image,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import BottomTab from '../../components/BottomTab';
 import styles from './CommunityStyles';
 import { usePosts } from '../../context/PostContext';
+import { BASE_URL } from '../../api/client';
 
 const TABS = ['인기', '면접 연습', '꿀팁', '취준'];
 
@@ -27,6 +30,12 @@ function PostCard({ item }) {
         <View style={styles.uxuiParent}>
           <Text style={styles.uxui}>{item.category}</Text>
           <Text style={styles.uxui}> ・ </Text>
+          {item.author && (
+              <>
+                <Text style={styles.uxui}>{item.author}</Text>
+                <Text style={styles.uxui}> ・ </Text>
+              </>
+          )}
           <Text style={styles.uxui}>{item.date}</Text>
           <Text style={styles.uxui}> ・ </Text>
           <Text style={styles.uxui}>조회 {item.views}</Text>
@@ -56,25 +65,53 @@ function PostCard({ item }) {
 export default function CommunityScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('인기');
   const [searchQuery, setSearchQuery] = useState('');
-  const { posts, popularPosts } = usePosts();
+  const { posts } = usePosts(); //더미
+  //db데이터
+  const [dbPosts, setDbPosts] = useState([]);
+  const [loading, setLoading] = useState(false);
 
+  const fetchBoards = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${BASE_URL}/api/boards?boardType=${activeTab}`);
+      if (response.ok) {
+        const realData = await response.json();
+        setDbPosts(realData); // DB 데이터 저장
+      }
+    } catch (error) {
+      console.error('[API 에러] 게시글 불러오기 실패:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useFocusEffect(
+      useCallback(() => {
+        fetchBoards();
+      }, [activeTab])
+  );
+
+  // 데이터 병합
   const filteredPosts = useMemo(() => {
-    // 인기 탭은 좋아요 10개 이상만
-    let result = activeTab === '인기' ? popularPosts : posts.filter((p) => p.tag === activeTab);
+    // db와 더미데이터
+    let result = [...dbPosts, ...posts];
+
+    if (activeTab !== '인기') {
+      result = result.filter((p) => p.tag === activeTab);
+    }
 
     // 검색 필터
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       result = result.filter(
-        (p) =>
-          p.title.toLowerCase().includes(q) ||
-          p.preview.toLowerCase().includes(q) ||
-          p.content?.toLowerCase().includes(q)
+          (p) =>
+              p.title.toLowerCase().includes(q) ||
+              (p.preview && p.preview.toLowerCase().includes(q)) ||
+              (p.content && p.content.toLowerCase().includes(q))
       );
     }
 
     return result;
-  }, [posts, popularPosts, activeTab, searchQuery]);
+  }, [dbPosts, posts, activeTab, searchQuery]);
 
   return (
     <View style={styles.container}>
@@ -133,7 +170,7 @@ export default function CommunityScreen({ navigation }) {
       <View style={{ flex: 1 }}>
         <FlatList
           data={filteredPosts}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.id.toString()}
           ListHeaderComponent={
             searchQuery.trim() ? (
               <Text style={styles.sectionTitle}>
@@ -152,9 +189,7 @@ export default function CommunityScreen({ navigation }) {
               marginTop: 60,
               fontSize: 14,
             }}>
-              {activeTab === '인기'
-                ? '아직 인기글이 없어요 (좋아요 10개 이상)'
-                : searchQuery.trim() ? '검색 결과가 없어요' : '아직 게시글이 없어요'}
+              {searchQuery.trim() ? '검색 결과가 없어요' : '아직 게시글이 없어요'}
             </Text>
           }
           renderItem={({ item }) => (

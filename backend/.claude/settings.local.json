@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew compileJava)",
+      "Bash(ls \"/c/프로젝트/ReadyQ/backend/\"*.txt)",
+      "WebFetch(domain:ai.google.dev)"
+    ]
+  }
+}

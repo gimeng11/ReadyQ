@@ -1,0 +1,367 @@
+====================================================
+  ReadyQ 면접 시스템 전체 로직 설명
+====================================================
+
+작성일: 2026-05-19
+작성자: 시스템 자동 생성
+
+----------------------------------------------------
+1. 개요
+----------------------------------------------------
+ReadyQ 면접 시스템은 최대 5교시로 구성되는 AI 모의면접 서비스입니다.
+사용자가 카메라 앞에서 질문에 답변하면, 그 영상을 Google Gemini AI가 분석하여
+피드백을 생성합니다. 교시 사이마다 꼬리질문 또는 새 질문을 선택할 수 있습니다.
+
+기술 스택:
+- 백엔드: Spring Boot (Java), MongoDB, Google Gemini 2.5 Flash API
+- 프론트엔드: React Native (Expo)
+- 영상 처리: Gemini File API (multipart 업로드)
+
+
+----------------------------------------------------
+2. 데이터 모델
+----------------------------------------------------
+
+▶ InterviewSession (MongoDB 컬렉션: interview_sessions)
+  - id           : 세션 고유 ID (MongoDB ObjectId)
+  - userId       : 사용자 ID
+  - title        : 면접 제목
+  - interviewerType : 면접관 유형 (DEFAULT / FRIENDLY / PRESSURE / LOGIC)
+  - status       : 세션 상태 (IN_PROGRESS / COMPLETED)
+  - targetCompany: 지원 기업 (선택)
+  - targetJob    : 지원 직무 (선택)
+  - coverLetter  : 자기소개서 (선택)
+  - currentPeriod: 현재 진행 교시 번호
+  - periods      : List<PeriodResult> — 교시별 결과 목록
+  - finalFeedback: FinalFeedback — 면접 종료 후 생성되는 최종 피드백
+  - createdAt    : 면접 시작 시각
+  - completedAt  : 면접 완료 시각
+
+▶ PeriodResult (InterviewSession 내 embedded)
+  - periodNum    : 교시 번호 (1~5)
+  - question     : 해당 교시 질문 내용
+  - questionType : 질문 유형 (INTRO / FOLLOW_UP / NEW)
+  - videoPath    : 서버 로컬 영상 저장 경로
+  - geminiFileUri: Gemini File API에 업로드된 파일 URI
+  - geminiMimeType: 영상 MIME 타입 (video/mp4 등)
+  - feedbackJson : Gemini가 반환한 피드백 원본 JSON 문자열
+  - parsedFeedback: PeriodFeedback — 파싱된 교시 피드백 객체
+  - followUpQuestions: List<String> — 생성된 꼬리질문 5개
+  - completedAt  : 해당 교시 완료 시각
+
+▶ PeriodFeedback (교시별 AI 피드백)
+  - scores       : Map<String, Integer> — 항목별 점수 (0~100)
+      · logicStructure  : 논리 구조력 (주장-근거-사례 구조)
+      · speechSpeed     : 말하기 속도 (SPM 기준)
+      · voiceVolume     : 목소리 전달력 (억양·음도·강도)
+      · eyeContact      : 비언어적 태도 (눈맞춤·자세·표정)
+      · fillerWords     : 추임새/말더듬 (분당 횟수)
+      · answerClarity   : 답변 명확성 (질문 적합성·핵심 전달)
+  - overallScore : 교시 종합 점수
+  - summaryFeedback : 한 문장 요약 피드백
+  - detailFeedback  : Map<String, String> — 항목별 상세 피드백
+  - improvementTips : List<String> — 개선 팁 3개
+
+▶ FinalFeedback (면접 전체 최종 피드백)
+  - totalScore   : 전체 종합 점수
+  - periodScores : List<Integer> — 교시별 점수 목록
+  - strongPoints : List<String> — 잘한 점 목록
+  - weakPoints   : List<String> — 부족한 점 목록
+  - improvementPoints: List<String> — 개선 사항 목록
+  - overallSummary   : 전체 요약 문장
+  - competencyShortDescriptions: Map<String, String> — 역량별 한줄 설명
+  - competencyScores: Map<String, Integer> — 역량별 평균 점수 (교시 피드백 평균 계산)
+  - prevSessionScore : 직전 면접 점수 (비교용, null 가능)
+  - firstSessionScore: 첫 면접 점수 (비교용, null 가능)
+
+
+----------------------------------------------------
+3. API 엔드포인트 목록
+----------------------------------------------------
+
+모든 엔드포인트는 JWT 인증 필요 (Authorization: Bearer <token>)
+기본 경로: /api/interview
+
+① POST  /start
+   - 역할: 면접 세션 생성 + 1교시 질문 반환
+   - 요청: { interviewerType, title, targetCompany, targetJob }
+   - 응답: { sessionId, periodNum, question, interviewerType, message }
+
+② POST  /{sessionId}/period/{num}/upload  [multipart/form-data]
+   - 역할: 교시 영상을 서버 로컬에 저장하고 Gemini File API에 업로드
+   - 요청: video 파일 (FormData)
+   - 응답: 200 OK (빈 바디)
+   - 처리 내용:
+     a) 영상을 서버 로컬 디렉토리에 저장 (uploads/interview-videos/{userId}/{sessionId}/)
+     b) multipart/related 형식으로 Gemini File API에 업로드
+     c) Gemini ACTIVE 상태 폴링 (최대 30초, 2초 간격)
+     d) geminiFileUri, geminiMimeType을 PeriodResult에 저장
+
+③ POST  /{sessionId}/period/{num}/submit
+   - 역할: Gemini를 이용해 교시 피드백 + 꼬리질문 생성
+   - 요청: 없음 (이미 업로드된 Gemini URI 활용)
+   - 응답: BreakTimeResponse { sessionId, completedPeriodNum, periodFeedbackSummary, canContinue, message }
+   - 처리 내용 (병렬 실행):
+     a) generatePeriodFeedback() → 6가지 항목 평가 JSON 생성
+     b) generateFollowUpQuestions() → 꼬리질문 5개 생성
+   - 결과: PeriodResult에 feedbackJson, parsedFeedback, followUpQuestions 저장
+
+④ GET   /{sessionId}/period/{num}/options
+   - 역할: 쉬는 시간 선택지 조회
+   - 응답: { followUpQuestions (5개), newQuestionAvailable, canEndInterview }
+
+⑤ POST  /{sessionId}/period/{num}/next
+   - 역할: 다음 교시 진행 (선택지에 따라 질문 결정)
+   - 요청: { choiceType, selectedQuestion }
+   - choiceType 종류:
+     · FOLLOW_UP    : 꼬리질문 선택 — selectedQuestion 사용
+     · NEW_QUESTION : 새 질문 — 1교시 자기소개 영상 분석 or 텍스트 기반 생성
+     · END_INTERVIEW: 면접 종료 — /complete 호출 유도
+   - 응답: { sessionId, periodNum, question, questionType, message }
+
+⑥ POST  /{sessionId}/complete
+   - 역할: 면접 종료 + 최종 피드백 생성
+   - 응답: FinalFeedbackResponse
+   - 처리 내용:
+     a) 이미 COMPLETED 상태면 저장된 피드백 즉시 반환
+     b) 모든 교시 feedbackJson 수집 → generateFinalFeedback() 호출
+     c) 역량별 평균 점수 계산 (이전 교시 parsedFeedback 평균)
+     d) 이전/첫 면접 점수 비교 추가 (enrichSessionComparisons)
+     e) 세션 상태를 COMPLETED로 변경, 로컬 영상 파일 삭제
+
+⑦ GET   /{sessionId}/feedback
+   - 역할: 최종 피드백 조회 (COMPLETED 상태여야만 반환)
+   - 응답: FinalFeedbackResponse
+   - 주의: IN_PROGRESS 상태면 IllegalStateException 발생
+
+⑧ GET   /{sessionId}/period/{num}/feedback
+   - 역할: 특정 교시 피드백 조회
+
+⑨ GET   /history
+   - 역할: 사용자의 과거 면접 목록 조회 (최신순)
+
+
+----------------------------------------------------
+4. 면접 진행 흐름 (전체 시퀀스)
+----------------------------------------------------
+
+[① 면접 시작]
+  프론트 → POST /start
+  └─ InterviewService.startInterview()
+     · InterviewerType 매핑 (basic→DEFAULT, kind→FRIENDLY, strict→PRESSURE, logic→LOGIC)
+     · 1교시 고정 질문 생성: "1분 30초 이내로 간단한 자기소개를 해주세요."
+     · InterviewSession 생성 (status=IN_PROGRESS) → MongoDB 저장
+     · sessionId + 질문 반환
+
+[② 교시 진행 (1~5교시, 동일한 패턴)]
+
+  [녹화 시작]
+  - 프론트 카메라가 자동으로 녹화 시작 (최대 95초)
+  - 사용자가 답변하면 체크 버튼 또는 타이머 만료로 녹화 종료
+
+  [영상 업로드 단계] ── 프론트 로딩: "영상 분석중이에요."
+  프론트 → POST /{sessionId}/period/{num}/upload
+  └─ InterviewService.uploadPeriodVideo()
+     · 영상을 서버 로컬 파일 시스템에 저장
+     · GeminiInterviewService.uploadVideoToGemini()
+       - multipart/related 형식으로 Gemini File API 업로드
+       - 업로드 완료 후 Gemini 파일 ACTIVE 상태를 폴링 (2초 간격, 최대 30초)
+     · geminiFileUri + geminiMimeType → PeriodResult 저장
+
+  [피드백 생성 단계] ── 프론트 로딩: "피드백 생성중이에요."
+  프론트 → POST /{sessionId}/period/{num}/submit
+  └─ InterviewService.submitPeriodAnswer()
+     · PeriodResult에서 geminiFileUri 꺼냄
+     · 병렬 실행:
+       ① generatePeriodFeedback(uri, mimeType, question, interviewerType)
+          - Gemini에 영상 + 평가 프롬프트 전송
+          - 6가지 항목 점수 + 피드백 JSON 반환
+       ② generateFollowUpQuestions(uri, mimeType, question)
+          - Gemini에 영상 + 꼬리질문 프롬프트 전송
+          - 꼬리질문 5개 반환
+     · parsedFeedback, followUpQuestions → PeriodResult 저장
+     · BreakTimeResponse 반환 (overallScore, summaryFeedback 포함)
+
+  [5교시 이후]
+  · 프론트에서 completeInterview() 백그라운드 호출 시작
+  · InterviewEnd 화면으로 이동
+
+  [1~4교시 이후 — 쉬는 시간]
+  · 프론트: 30초 카운트다운 표시
+  · 사용자 선택:
+    A) "다음 교시로" → /next 호출 (FOLLOW_UP or NEW_QUESTION)
+    B) "면접 종료" → /complete 호출
+
+[③ 쉬는 시간 선택 (1~4교시 후)]
+
+  [꼬리질문 선택 모드 (selectedType = 'select')]
+  프론트 → GET /{sessionId}/period/{num}/options
+  └─ PeriodResult의 followUpQuestions 반환 (submit 시 이미 생성됨)
+  · 사용자가 5개 중 1개 선택
+  프론트 → POST /{sessionId}/period/{num}/next { choiceType: "FOLLOW_UP", selectedQuestion: "..." }
+  └─ selectedQuestion을 그대로 다음 교시 질문으로 사용
+
+  [자동 모드 (selectedType = 'random')]
+  프론트 → POST /{sessionId}/period/{num}/next { choiceType: "NEW_QUESTION" }
+  └─ InterviewService.proceedToNextPeriod()
+     · 1교시 자기소개 영상(geminiFileUri) 있으면:
+       generateQuestionFromIntroVideo() → 자기소개 내용 기반 질문 생성
+     · 없으면:
+       generateNewQuestion() → 기업/직무 기반 텍스트 질문 생성
+     · 이미 나온 질문은 중복 금지
+
+[④ 면접 종료 + 최종 피드백 생성]
+
+  프론트 → POST /{sessionId}/complete
+  └─ InterviewService.completeInterview()
+     · 이미 COMPLETED이면 즉시 기존 피드백 반환
+     · 완료된 교시 feedbackJson 목록 수집
+     · GeminiInterviewService.generateFinalFeedback(feedbackJsonList)
+       - 모든 교시 피드백을 종합하여 최종 피드백 JSON 생성
+       - strongPoints, weakPoints, improvementPoints, totalScore 등 계산
+     · 역량별 평균 점수 계산 (parsedFeedback.scores 평균)
+     · 이전 면접 / 첫 면접 점수 조회 및 비교 추가
+     · 세션 status = COMPLETED, completedAt 설정
+     · 로컬 영상 파일 삭제 (deleteSessionVideos)
+     · MongoDB 저장
+
+  ※ 프론트는 completeInterview를 "fire and forget"으로 호출하고
+     FeedbackScreen에서 2초마다 폴링하여 완료 시점에 피드백 표시
+
+[⑤ 피드백 조회]
+
+  프론트 → GET /{sessionId}/feedback
+  └─ status = COMPLETED 이어야 반환 (아니면 예외)
+  · FeedbackScreen에서 최대 30번 (60초) 폴링
+  · 완료 시 totalScore, competencyScores, strongPoints 등 표시
+
+
+----------------------------------------------------
+5. Gemini AI 연동 상세
+----------------------------------------------------
+
+▶ 사용 모델: gemini-2.5-flash
+
+▶ 영상 업로드 (uploadVideoToGemini)
+  - 엔드포인트: POST https://generativelanguage.googleapis.com/upload/v1beta/files
+  - 형식: multipart/related (메타데이터 파트 + 바이너리 파트)
+  - 업로드 후 Gemini 파일이 ACTIVE 상태가 될 때까지 폴링
+    (2초 간격, 최대 30초 대기)
+
+▶ 영상 기반 API 호출 (callGeminiWithVideo)
+  - 엔드포인트: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent
+  - 요청에 fileData (uri + mimeType) + 텍스트 프롬프트 포함
+  - 재시도: 최대 3회, 2초 간격 (Reactor retry)
+
+▶ 텍스트 전용 API 호출 (callGeminiText)
+  - 동일 엔드포인트, fileData 없이 텍스트 프롬프트만 전송
+
+▶ 면접관 유형별 프롬프트
+  - DEFAULT  : 일반적이고 균형 잡힌 면접관
+  - FRIENDLY : 친절하고 격려하는 면접관
+  - PRESSURE : 압박 질문을 하는 까다로운 면접관
+  - LOGIC    : 논리적 사고와 문제 해결력을 중시하는 면접관
+
+▶ 피드백 평가 기준 (generatePeriodFeedback)
+  ① speechSpeed (말하기 속도)
+     - 이상적: 265~350 SPM / 허용: 250~410 SPM
+     - 범위 이탈 시 감점
+  ② fillerWords (추임새)
+     - "음", "어", "그", "저" 등 분당 5회 이하 양호
+     - 6~11회 주의, 12회 이상 감점
+  ③ eyeContact (비언어적 태도)
+     - 눈맞춤, 미소, 고개끄덕임, 자세 종합 평가
+  ④ voiceVolume (목소리 전달력)
+     - 남성: 억양변화 90Hz+, 음도 111~130Hz, 강도 67~72dB
+     - 여성: 억양변화 121Hz+, 음도 231~250Hz, 강도 67~72dB
+  ⑤ logicStructure (논리 구조력)
+     - 주장-근거-사례 구조, 결론 비약 여부
+  ⑥ answerClarity (답변 명확성)
+     - 질문 의도 적합성, 핵심 메시지 전달력
+
+
+----------------------------------------------------
+6. 프론트엔드 화면 흐름
+----------------------------------------------------
+
+[InterviewCamera.js — 핵심 화면]
+  phase 상태 전이:
+    'guide'    → (3초 카운트다운) → 'question'
+    'question' → (체크 버튼 or 타이머 만료) → 'loading'
+    'loading'  → (upload + submit 완료) → 'break' or 'end'
+    'break'    → (사용자 선택) → 'question' or 'select' or 'end'
+    'select'   → (질문 선택) → 'question'
+    'end'      → InterviewEnd 화면으로 이동
+
+  로딩 메시지 (loadingStep):
+    0: "영상 분석중이에요."   — 영상 저장 + Gemini 업로드 중
+    1: "피드백 생성중이에요." — Gemini 피드백 분석 중
+    2: "완료되었어요."        — 처리 완료
+
+  쉬는 시간:
+    - 30초 카운트다운 타이머 표시
+    - "다음 교시로" / "면접 종료" 버튼 즉시 사용 가능
+
+[InterviewEnd.js]
+  - "피드백 보러가기" 클릭 시:
+    1. completeInterview() 백그라운드 호출 (await 없음)
+    2. FeedbackScreen으로 즉시 이동
+
+[FeedbackScreen.js]
+  - 진입 시 getSessionFeedback() 폴링 시작 (2초 간격, 최대 30회)
+  - 대기 중: ActivityIndicator + "피드백 생성중이에요..." 텍스트 표시
+  - 완료 시: 종합 피드백 탭 / 영상별 피드백 탭 표시
+
+
+----------------------------------------------------
+7. 주요 파일 위치
+----------------------------------------------------
+
+백엔드:
+  src/main/java/com/readyq/
+  ├── controller/InterviewController.java   — REST 엔드포인트
+  ├── service/InterviewService.java         — 핵심 비즈니스 로직
+  ├── service/GeminiInterviewService.java   — Gemini AI 연동
+  ├── model/interview/
+  │   ├── InterviewSession.java             — 세션 MongoDB 도큐먼트
+  │   ├── PeriodResult.java                 — 교시별 결과
+  │   ├── PeriodFeedback.java               — 교시 피드백
+  │   ├── FinalFeedback.java                — 최종 피드백
+  │   ├── InterviewerType.java              — 면접관 유형 enum
+  │   ├── InterviewStatus.java              — 세션 상태 enum
+  │   └── QuestionType.java                 — 질문 유형 enum
+
+프론트엔드:
+  src/
+  ├── screens/Interview/
+  │   ├── InterviewCamera.js               — 핵심 면접 화면
+  │   └── InterviewEnd.js                  — 면접 종료 화면
+  ├── screens/Feedback/
+  │   └── FeedbackScreen.js                — 피드백 조회 화면
+  ├── api/interview.js                     — API 호출 함수
+  └── components/LoadingScreen.js          — 로딩 UI 컴포넌트
+
+
+----------------------------------------------------
+8. 영상 파일 관리
+----------------------------------------------------
+
+  저장 경로: {uploadBasePath}/{userId}/{sessionId}/period_{num}.mp4
+  기본 경로: ./uploads/interview-videos/ (설정 변경 가능)
+
+  생명주기:
+  1. uploadPeriodVideo() 시 로컬 저장
+  2. Gemini File API에 업로드 후 URI만 남김
+  3. completeInterview() 시 로컬 파일 전부 삭제
+     (Gemini에는 파일이 남지만 48시간 후 자동 만료)
+
+
+----------------------------------------------------
+9. 오류 처리 방침
+----------------------------------------------------
+
+  - Gemini 호출 실패 시: 기본 피드백(점수 70점) 사용
+  - 영상 없이 submit 시: IllegalStateException (upload 먼저 호출 필요)
+  - 이미 COMPLETED 세션의 complete 재호출: 저장된 피드백 즉시 반환
+  - 미완료 세션에 feedback 조회: IllegalStateException
+  - 프론트 폴링: 2초 간격으로 최대 30회 (총 60초) 재시도 후 실패 처리

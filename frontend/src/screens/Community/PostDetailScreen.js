@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,226 +10,265 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  ActionSheetIOS,
   Alert,
+  ActionSheetIOS,
 } from 'react-native';
 import { usePosts } from '../../context/PostContext';
+import * as communityApi from '../../api/community';
 
 export default function PostDetailScreen({ navigation, route }) {
   const item = route.params?.item;
-  const { toggleScrap, isScrapped, deletePost, updatePost, posts, addComment, deleteComment, getComments } = usePosts();
+  const { toggleScrap, isScrapped, deletePost, updatePost, toggleLike } = usePosts();
+  const [postDetail, setPostDetail] = useState(item);
   const [comment, setComment] = useState('');
-  const [liked, setLiked] = useState(false);
+  const [liked, setLiked] = useState(item?.isLiked || false);
+  const [likesCount, setLikesCount] = useState(item?.likes || 0);
+  const [commentsList, setCommentsList] = useState([]);
   const [editMode, setEditMode] = useState(false);
   const [editTitle, setEditTitle] = useState(item?.title || '');
   const [editContent, setEditContent] = useState(item?.content || '');
 
-  if (!item) return null;
+  // 상세 데이터 가져오기 (조회수 증가 및 최신 정보)
+  const fetchDetail = async () => {
+    try {
+      const data = await communityApi.getBoardDetail(item.id);
+      setPostDetail(data);
+      setLiked(data.isLiked);
+      setLikesCount(data.likes);
+    } catch (error) {
+      console.error('상세 정보 로드 실패:', error);
+    }
+  };
 
-  const currentItem = posts.find((p) => p.id === item.id) || item;
-  const commentList = getComments(item.id);
+  // 좋아요 API 연동
+  const handleLike = async () => {
+    try {
+      const isLikedNow = await toggleLike(item.id);
+      setLiked(isLikedNow);
+      setLikesCount(prev => isLikedNow ? prev + 1 : prev - 1);
+    } catch (error) {
+      Alert.alert('오류', '좋아요 처리에 실패했습니다.');
+    }
+  };
+
+  // 댓글 서버에서 가져오기
+  const fetchComments = async () => {
+    if (!item || !item.id) return;
+    try {
+      const data = await communityApi.getComments(item.id);
+      setCommentsList(data);
+    } catch (error) {
+      console.error('댓글 불러오기 실패:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchDetail();
+    fetchComments();
+  }, [item.id]);
+
+  const handleSubmitComment = async () => {
+    if (!comment.trim()) return;
+
+    try {
+      await communityApi.createComment(item.id, {
+        content: comment.trim(),
+        isAnonymous: false,
+      });
+      setComment('');
+      fetchComments(); // 작성 후 목록 새로고침
+      fetchDetail(); // 댓글 수 갱신을 위해 상세정보도 다시 가져옴
+    } catch (error) {
+      Alert.alert('오류', '댓글 작성에 실패했습니다.');
+    }
+  };
+
+  if (!postDetail) return null;
+
   const scrapped = isScrapped(item.id);
 
   const handleMorePress = () => {
-    if (!currentItem.isMyPost) return;
+    if (!postDetail.isMyPost) return;
     ActionSheetIOS.showActionSheetWithOptions(
-      { options: ['수정', '삭제', '닫기'], destructiveButtonIndex: 1, cancelButtonIndex: 2 },
-      (buttonIndex) => {
-        if (buttonIndex === 0) {
-          setEditTitle(currentItem.title);
-          setEditContent(currentItem.content);
-          setEditMode(true);
-        } else if (buttonIndex === 1) {
-          Alert.alert('삭제', '게시글을 삭제하시겠습니까?', [
-            { text: '취소', style: 'cancel' },
-            { text: '삭제', style: 'destructive', onPress: () => { deletePost(item.id); navigation.goBack(); } },
-          ]);
+        { options: ['수정', '삭제', '닫기'], destructiveButtonIndex: 1, cancelButtonIndex: 2 },
+        (buttonIndex) => {
+          if (buttonIndex === 0) {
+            setEditTitle(postDetail.title);
+            setEditContent(postDetail.content || postDetail.preview);
+            setEditMode(true);
+          } else if (buttonIndex === 1) {
+            Alert.alert('삭제', '게시글을 삭제하시겠습니까?', [
+              { text: '취소', style: 'cancel' },
+              { text: '삭제', style: 'destructive', onPress: async () => { 
+                  await deletePost(item.id); 
+                  navigation.goBack(); 
+              } },
+            ]);
+          }
         }
-      }
     );
   };
 
-  const handleCommentMorePress = (commentId) => {
-    ActionSheetIOS.showActionSheetWithOptions(
-      { options: ['삭제', '닫기'], destructiveButtonIndex: 0, cancelButtonIndex: 1 },
-      (buttonIndex) => {
-        if (buttonIndex === 0) {
-          Alert.alert('삭제', '댓글을 삭제하시겠습니까?', [
-            { text: '취소', style: 'cancel' },
-            { text: '삭제', style: 'destructive', onPress: () => deleteComment(item.id, commentId) },
-          ]);
-        }
-      }
-    );
-  };
-
-  const handleEditSubmit = () => {
+  const handleEditSubmit = async () => {
     if (!editTitle.trim() || !editContent.trim()) {
       Alert.alert('알림', '제목과 내용을 입력해주세요.');
       return;
     }
-    updatePost(item.id, { title: editTitle.trim(), content: editContent.trim() });
+    await updatePost(item.id, { title: editTitle.trim(), content: editContent.trim() });
     setEditMode(false);
-  };
-
-  const handleSendComment = () => {
-    if (!comment.trim()) return;
-    addComment(item.id, comment.trim());
-    setComment('');
+    fetchDetail();
   };
 
   if (editMode) {
     return (
-      <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => setEditMode(false)}>
-              <Text style={styles.backBtn}>←</Text>
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>게시글 수정</Text>
-            <TouchableOpacity onPress={handleEditSubmit}>
-              <Text style={styles.submitBtn}>완료</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.categoryRow}>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{currentItem.tag}</Text>
+        <SafeAreaView style={styles.container}>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={() => setEditMode(false)}>
+                <Text style={styles.backBtn}>←</Text>
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>게시글 수정</Text>
+              <TouchableOpacity onPress={handleEditSubmit}>
+                <Text style={styles.submitBtn}>완료</Text>
+              </TouchableOpacity>
             </View>
-          </View>
-          <TextInput
-            style={styles.titleInput}
-            value={editTitle}
-            onChangeText={setEditTitle}
-            placeholder="제목을 입력해주세요"
-            placeholderTextColor="#BEC8D6"
-          />
-          <View style={styles.divider} />
-          <TextInput
-            style={styles.contentInput}
-            value={editContent}
-            onChangeText={setEditContent}
-            placeholder="내용을 입력해주세요"
-            placeholderTextColor="#BEC8D6"
-            multiline
-            textAlignVertical="top"
-          />
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+            <View style={styles.categoryRow}>
+              <View style={styles.categoryBadge}>
+                <Text style={styles.categoryText}>{postDetail.tag}</Text>
+              </View>
+            </View>
+            <TextInput
+                style={styles.titleInput}
+                value={editTitle}
+                onChangeText={setEditTitle}
+                placeholder="제목을 입력해주세요"
+                placeholderTextColor="#BEC8D6"
+            />
+            <View style={styles.divider} />
+            <TextInput
+                style={styles.contentInput}
+                value={editContent}
+                onChangeText={setEditContent}
+                placeholder="내용을 입력해주세요"
+                placeholderTextColor="#BEC8D6"
+                multiline
+                textAlignVertical="top"
+            />
+          </KeyboardAvoidingView>
+        </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {/* 헤더 */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backBtn}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>커뮤니티</Text>
-          <View style={styles.headerRight}>
-            <TouchableOpacity onPress={() => toggleScrap(item.id)} style={styles.headerBtn}>
-              <Image
-                source={require('../../../assets/icons/save.png')}
-                style={[styles.scrapIcon, scrapped && styles.scrapIconActive]}
-              />
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          {/* 헤더 */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Text style={styles.backBtn}>←</Text>
             </TouchableOpacity>
-            {currentItem.isMyPost && (
-              <TouchableOpacity onPress={handleMorePress} style={styles.headerBtn}>
-                <Text style={styles.moreBtn}>⋯</Text>
+            <Text style={styles.headerTitle}>커뮤니티</Text>
+            <View style={styles.headerRight}>
+              <TouchableOpacity onPress={() => toggleScrap(item.id)} style={styles.headerBtn}>
+                <Image
+                    source={require('../../../assets/icons/save.png')}
+                    style={[styles.scrapIcon, scrapped && styles.scrapIconActive]}
+                />
               </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <View style={styles.postBody}>
-            <View style={styles.tagBadge}>
-              <Text style={styles.tagText}>{currentItem.tag}</Text>
-            </View>
-            <Text style={styles.postTitle}>{currentItem.title}</Text>
-
-            <View style={styles.authorRow}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>레</Text>
-              </View>
-              <View>
-                <Text style={styles.authorName}>레디큐</Text>
-                <Text style={styles.postMeta}>
-                  {currentItem.category} · {currentItem.date} · 조회 {currentItem.views}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-            <Text style={styles.postContent}>{currentItem.content || currentItem.preview}</Text>
-
-            <View style={styles.actionRow}>
-              <TouchableOpacity style={styles.actionBtn} onPress={() => setLiked(!liked)}>
-                <Text style={[styles.actionIcon, liked && { color: '#3281FF' }]}>♥</Text>
-                <Text style={[styles.actionCount, liked && { color: '#3281FF' }]}>
-                  {liked ? currentItem.likes + 1 : currentItem.likes}
-                </Text>
-              </TouchableOpacity>
-              <View style={styles.actionBtn}>
-                <Text style={styles.actionIcon}>💬</Text>
-                <Text style={styles.actionCount}>{commentList.length}</Text>
-              </View>
+              {postDetail.isMyPost && (
+                  <TouchableOpacity onPress={handleMorePress} style={styles.headerBtn}>
+                    <Text style={styles.moreBtn}>⋯</Text>
+                  </TouchableOpacity>
+              )}
             </View>
           </View>
 
-          <View style={styles.dividerThick} />
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* 게시글 본문 */}
+            <View style={styles.postBody}>
+              <View style={styles.tagBadge}>
+                <Text style={styles.tagText}>{postDetail.tag}</Text>
+              </View>
+              <Text style={styles.postTitle}>{postDetail.title}</Text>
 
-          {/* 댓글 목록 */}
-          <View style={styles.commentSection}>
-            <Text style={styles.commentHeader}>댓글 {commentList.length}</Text>
-            {commentList.length === 0 ? (
-              <Text style={styles.emptyComment}>첫 댓글을 남겨보세요!</Text>
-            ) : (
-              commentList.map((c) => (
-                <View key={c.id} style={styles.commentItem}>
-                  <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{c.author[0]}</Text>
-                  </View>
-                  <View style={styles.commentContent}>
-                    <View style={styles.commentTop}>
-                      <Text style={styles.commentAuthor}>{c.author}</Text>
-                      <View style={styles.commentTopRight}>
-                        <Text style={styles.commentDate}>{c.date}</Text>
-                        {c.isMyComment && (
-                          <TouchableOpacity onPress={() => handleCommentMorePress(c.id)}>
-                            <Text style={styles.commentMore}>⋯</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    </View>
-                    <Text style={styles.commentText}>{c.text}</Text>
-                  </View>
+              {/* 작성자 정보 */}
+              <View style={styles.authorRow}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{postDetail.author ? postDetail.author[0] : '?'}</Text>
                 </View>
-              ))
-            )}
-          </View>
-        </ScrollView>
+                <View>
+                  <Text style={styles.authorName}>{postDetail.author}</Text>
+                  <Text style={styles.postMeta}>
+                    {postDetail.category} · {postDetail.date} · 조회 {postDetail.views}
+                  </Text>
+                </View>
+              </View>
 
-        {/* 댓글 입력창 */}
-        <View style={styles.commentInputBar}>
-          <TextInput
-            style={styles.commentInput}
-            placeholder="댓글을 입력해주세요"
-            placeholderTextColor="#BEC8D6"
-            value={comment}
-            onChangeText={setComment}
-          />
-          <TouchableOpacity
-            style={[styles.sendBtn, !comment.trim() && { opacity: 0.4 }]}
-            disabled={!comment.trim()}
-            onPress={handleSendComment}
-          >
-            <Text style={styles.sendBtnText}>전송</Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              <View style={styles.divider} />
+              <Text style={styles.postContent}>{postDetail.content || postDetail.preview}</Text>
+
+              {/* 액션바 (좋아요 / 댓글수) */}
+              <View style={styles.actionRow}>
+                <TouchableOpacity style={styles.actionBtn} onPress={handleLike}>
+                  <Text style={[styles.actionIcon, liked && { color: '#3281FF' }]}>♥</Text>
+                  <Text style={[styles.actionCount, liked && { color: '#3281FF' }]}>
+                    {likesCount}
+                  </Text>
+                </TouchableOpacity>
+                <View style={styles.actionBtn}>
+                  <Text style={styles.actionIcon}>💬</Text>
+                  <Text style={styles.actionCount}>{commentsList.length}</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.dividerThick} />
+
+            {/* 댓글 목록 */}
+            <View style={styles.commentSection}>
+              <Text style={styles.commentHeader}>댓글 {commentsList.length}</Text>
+
+              {commentsList.map((c, i) => (
+                  <View key={c.id || i} style={styles.commentItem}>
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>
+                        {c.author ? c.author.substring(0, 1) : '유'}
+                      </Text>
+                    </View>
+
+                    <View style={styles.commentContent}>
+                      <View style={styles.commentTop}>
+                        <Text style={styles.commentAuthor}>{c.author || `유저${i + 1}`}</Text>
+                        <Text style={styles.commentDate}>{c.date || '방금 전'}</Text>
+                      </View>
+                      <Text style={styles.commentText}>
+                        {c.content}
+                      </Text>
+                    </View>
+                  </View>
+              ))}
+            </View>
+          </ScrollView>
+
+          {/* 댓글 입력창 */}
+          <View style={styles.commentInputBar}>
+            <TextInput
+                style={styles.commentInput}
+                placeholder="댓글을 입력해주세요"
+                placeholderTextColor="#BEC8D6"
+                value={comment}
+                onChangeText={setComment}
+            />
+            <TouchableOpacity
+                style={[styles.sendBtn, !comment.trim() && { opacity: 0.4 }]}
+                disabled={!comment.trim()}
+                onPress={handleSubmitComment}
+            >
+              <Text style={styles.sendBtnText}>전송</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
   );
 }
 
