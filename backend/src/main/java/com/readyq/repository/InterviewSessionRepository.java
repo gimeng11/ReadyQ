@@ -15,4 +15,6 @@ public interface InterviewSessionRepository extends MongoRepository<InterviewSes
     List<InterviewSession> findByUserIdOrderByCreatedAtDesc(String userId);
 
     List<InterviewSession> findByUserIdAndStatus(String userId, InterviewStatus status);
+
+    List<InterviewSession> findByUserIdAndStatusOrderByCreatedAtDesc(String userId, InterviewStatus status);
 }

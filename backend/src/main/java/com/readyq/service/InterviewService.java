@@ -359,6 +359,22 @@ public class InterviewService {
     }
 
     // ───────────────────────────────────────────────
+    // 9. 아카이브 목록 조회 (완료된 세션만)
+    // ───────────────────────────────────────────────
+
+    public List<InterviewSession> getCompletedSessions(String userId) {
+        return sessionRepository.findByUserIdAndStatusOrderByCreatedAtDesc(userId, InterviewStatus.COMPLETED);
+    }
+
+    // ───────────────────────────────────────────────
+    // 10. 아카이브 상세 조회
+    // ───────────────────────────────────────────────
+
+    public InterviewSession getSessionDetail(String userId, String sessionId) {
+        return getSessionAndValidateOwner(sessionId, userId);
+    }
+
+    // ───────────────────────────────────────────────
     // Private helpers
     // ───────────────────────────────────────────────
 
