@@ -9,7 +9,12 @@ export default StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 4,
   },
-  settingIcon: { fontSize: 20 },
+  settingIcon: {
+  width: 22,
+  height: 22,
+  resizeMode: 'contain',
+  tintColor: '#64748B',
+},
 
   // 프로필 카드
   profileCard: {
