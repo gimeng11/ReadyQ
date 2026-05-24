@@ -496,6 +496,20 @@ public class GeminiInterviewService {
     // 5. 새로운 질문 생성 (다른 질문 선택 시)
     // ───────────────────────────────────────────────
 
+    // 랜덤 질문 다양성을 위한 토픽 풀 (호출마다 다른 토픽 선택)
+    private static final List<String> QUESTION_TOPICS = List.of(
+        "성장 경험과 자기개발",
+        "실패·갈등 극복과 회복탄력성",
+        "리더십·팔로워십 경험",
+        "데이터·수치 기반 의사결정 경험",
+        "고객·사용자 중심 사고",
+        "창의적 문제 해결 경험",
+        "협업·커뮤니케이션 스타일",
+        "목표 설정과 우선순위 관리",
+        "변화·불확실성 대응 경험",
+        "직무 전문성과 최신 트렌드 인식"
+    );
+
     /**
      * 이전 질문들과 겹치지 않는 새로운 회사/직무 관련 질문을 생성한다.
      */
@@ -503,7 +517,7 @@ public class GeminiInterviewService {
                                       String targetCompany,
                                       String targetJob,
                                       List<String> previousQuestions) {
-        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, null);
+        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, null, null);
     }
 
     public String generateNewQuestion(String coverLetter,
@@ -511,34 +525,58 @@ public class GeminiInterviewService {
                                       String targetJob,
                                       List<String> previousQuestions,
                                       String introContext) {
-        String prevQuestionsStr = previousQuestions.isEmpty() ? "없음" : String.join("\n- ", previousQuestions);
+        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, introContext, null);
+    }
+
+    public String generateNewQuestion(String coverLetter,
+                                      String targetCompany,
+                                      String targetJob,
+                                      List<String> previousQuestions,
+                                      String introContext,
+                                      String currentQuestion) {
+        String prevQuestionsStr = previousQuestions.isEmpty() ? "없음" : "- " + String.join("\n- ", previousQuestions);
         String tc = (targetCompany != null && !targetCompany.isBlank()) ? targetCompany : "지원 기업";
         String tj = (targetJob != null && !targetJob.isBlank()) ? targetJob : "지원 직무";
-        String contextPart = (introContext != null && !introContext.isBlank())
-                ? "지원자 자기소개 요약: " + introContext + "\n"
-                : "";
+
+        // 호출마다 다른 토픽 선택 (현재 시각 기반 → 반복 방지)
+        int topicIdx = (int) (System.currentTimeMillis() % QUESTION_TOPICS.size());
+        String chosenTopic = QUESTION_TOPICS.get(topicIdx);
+
+        String contextPart = "";
+        if (introContext != null && !introContext.isBlank())
+            contextPart += "지원자 자기소개 요약: " + introContext + "\n";
+        if (currentQuestion != null && !currentQuestion.isBlank())
+            contextPart += "방금 답변한 질문: " + currentQuestion + "\n";
+
         String prompt = String.format(
-                "%s%s 회사의 %s 직무 면접에서 사용할 새로운 질문을 1개 생성해주세요.\n" +
-                "이미 사용한 질문 (중복 금지):\n- %s\n\n" +
-                "직무 역량, 문제해결 경험, 협업 능력 중 한 가지를 중심으로 " +
-                "질문 한 문장만 반환하세요. 다른 텍스트는 포함하지 마세요.",
-                contextPart, tc, tj, prevQuestionsStr);
+                "%s\n" +
+                "%s 회사의 %s 직무 면접 질문 1개를 생성하세요.\n\n" +
+                "반드시 다음 조건을 모두 충족하세요:\n" +
+                "1. 이번 질문의 핵심 주제: [%s] — 이 주제를 중심으로 질문을 만드세요.\n" +
+                "2. 이미 사용한 질문과 주제가 중복되지 않아야 합니다:\n%s\n" +
+                "3. 방금 답변한 질문과는 완전히 다른 각도의 질문이어야 합니다.\n" +
+                "4. 구체적인 경험이나 사례를 유도하는 행동 기반 질문으로 작성하세요.\n\n" +
+                "질문 한 문장만 반환하세요. 번호·설명·인사말 없이 질문 그대로만.",
+                contextPart, tc, tj, chosenTopic, prevQuestionsStr);
 
         try {
             return callGeminiText(prompt).trim();
         } catch (Exception e) {
             log.warn("Gemini 새 질문 생성 실패 — 기본 질문 사용: {}", e.getMessage());
             List<String> fallbackQuestions = List.of(
-                "지원한 직무에서 가장 중요하다고 생각하는 역량은 무엇인가요?",
-                "본인의 강점과 약점을 각각 한 가지씩 말씀해 주세요.",
-                "팀 프로젝트에서 갈등을 해결한 경험이 있다면 말씀해 주세요.",
-                "5년 후 본인의 커리어 목표는 무엇인가요?",
-                "가장 어려웠던 문제를 해결한 경험을 말씀해 주세요."
+                "실패했던 경험과 그로부터 배운 점을 말씀해 주세요.",
+                "팀에서 의견 충돌이 있었을 때 어떻게 해결하셨나요?",
+                "스스로 세운 목표를 달성하기 위해 어떤 노력을 기울였나요?",
+                "업무 중 예상치 못한 변화에 어떻게 대응하셨나요?",
+                "가장 창의적으로 문제를 해결했던 경험을 말씀해 주세요.",
+                "리더 역할을 맡았던 경험과 그 결과를 말씀해 주세요.",
+                "데이터나 수치를 활용해 의사결정한 경험이 있으신가요?",
+                "본인의 커뮤니케이션 스타일을 사례와 함께 설명해 주세요."
             );
             return fallbackQuestions.stream()
                 .filter(q -> !previousQuestions.contains(q))
                 .findFirst()
-                .orElse("본인이 이 직무에 적합한 이유를 말씀해 주세요.");
+                .orElse("본인이 이 직무에 적합한 이유를 구체적인 경험으로 말씀해 주세요.");
         }
     }
 

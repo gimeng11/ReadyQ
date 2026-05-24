@@ -18,6 +18,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -122,29 +124,54 @@ public class InterviewService {
             throw new IllegalStateException("영상이 아직 업로드되지 않았습니다. 먼저 /upload 를 호출하세요.");
         }
 
-        long t2 = System.currentTimeMillis();
-        GeminiInterviewService.PeriodAnalysisResult analysis = geminiService.generatePeriodAnalysis(
-                geminiUri,
-                geminiMimeType,
-                periodResult.getQuestion(),
-                session.getInterviewerType(),
-                null
-        );
-        String feedbackJson = analysis.feedbackJson();
-        List<String> followUpQuestions = analysis.followUpQuestions();
-        log.info("[TIMING] {}교시 피드백+꼬리질문 단일 생성: {}ms", periodNum, System.currentTimeMillis() - t2);
+        // 병렬 실행에 필요한 값 미리 확보 (람다에서 final 참조)
+        final String currentQuestion   = periodResult.getQuestion();
+        final InterviewerType iType    = session.getInterviewerType();
+        final String targetCompany     = session.getTargetCompany();
+        final String targetJob         = session.getTargetJob();
+        final List<String> prevQuestions = session.getPeriods().stream()
+                .map(PeriodResult::getQuestion).collect(Collectors.toList());
+        final String introSummary = session.getPeriods().stream()
+                .filter(p -> p.getPeriodNum() == 1 && p.getParsedFeedback() != null)
+                .findFirst()
+                .map(p -> p.getParsedFeedback().getSummaryFeedback())
+                .orElse(null);
 
-        PeriodFeedback parsedFeedback = geminiService.parsePeriodFeedback(feedbackJson);
+        // 피드백 생성(영상 분석, 느림) + NEW_QUESTION 생성(텍스트, 빠름) 병렬 실행
+        long t = System.currentTimeMillis();
+        CompletableFuture<GeminiInterviewService.PeriodAnalysisResult> feedbackFuture =
+                CompletableFuture.supplyAsync(() ->
+                        geminiService.generatePeriodAnalysis(geminiUri, geminiMimeType,
+                                currentQuestion, iType, null));
 
-        periodResult.setFeedbackJson(feedbackJson);
+        CompletableFuture<String> newQuestionFuture =
+                CompletableFuture.supplyAsync(() ->
+                        geminiService.generateNewQuestion(null, targetCompany, targetJob,
+                                prevQuestions, introSummary, currentQuestion));
+
+        GeminiInterviewService.PeriodAnalysisResult analysis;
+        String pregenQuestion;
+        try {
+            analysis       = feedbackFuture.get(150, TimeUnit.SECONDS);
+            pregenQuestion = newQuestionFuture.get(30,  TimeUnit.SECONDS);
+        } catch (java.util.concurrent.TimeoutException e) {
+            analysis       = feedbackFuture.getNow(null);
+            pregenQuestion = null;
+            if (analysis == null) throw new RuntimeException("피드백 생성 타임아웃", e);
+        } catch (Exception e) {
+            throw new RuntimeException("분석 중 오류: " + e.getMessage(), e);
+        }
+        log.info("[TIMING] {}교시 피드백+NEW_QUESTION 병렬 생성: {}ms", periodNum, System.currentTimeMillis() - t);
+
+        PeriodFeedback parsedFeedback = geminiService.parsePeriodFeedback(analysis.feedbackJson());
+
+        periodResult.setFeedbackJson(analysis.feedbackJson());
         periodResult.setParsedFeedback(parsedFeedback);
-        periodResult.setFollowUpQuestions(followUpQuestions);
+        periodResult.setFollowUpQuestions(analysis.followUpQuestions());
+        periodResult.setPreGeneratedNewQuestion(pregenQuestion);
         periodResult.setCompletedAt(LocalDateTime.now());
 
         sessionRepository.save(session);
-
-        // 백그라운드에서 NEW_QUESTION 사전 생성 (다음 교시 즉시 전환을 위해)
-        preGenerateNewQuestion(sessionId, periodNum, session, periodResult);
 
         BreakTimeResponse.PeriodFeedbackSummary summary =
                 BreakTimeResponse.PeriodFeedbackSummary.builder()
@@ -478,46 +505,6 @@ public class InterviewService {
         } else {
             finalFeedback.setComparisonWithPrev("첫 번째 면접입니다.");
         }
-    }
-
-    /**
-     * submitPeriodAnswer 직후 백그라운드 스레드에서 NEW_QUESTION을 사전 생성하여 DB에 저장한다.
-     * 사용자가 쉬는시간 화면을 보는 동안 생성이 완료되어 다음 교시 전환이 즉시 이루어진다.
-     */
-    private void preGenerateNewQuestion(String sessionId, int periodNum,
-                                        InterviewSession session, PeriodResult currentPeriod) {
-        final String targetCompany = session.getTargetCompany();
-        final String targetJob = session.getTargetJob();
-        final List<String> previousQuestions = session.getPeriods().stream()
-                .map(PeriodResult::getQuestion)
-                .collect(Collectors.toList());
-        final String currentSummary = currentPeriod.getParsedFeedback() != null
-                ? currentPeriod.getParsedFeedback().getSummaryFeedback()
-                : null;
-        final String introContext = session.getPeriods().stream()
-                .filter(p -> p.getPeriodNum() == 1 && p.getParsedFeedback() != null)
-                .findFirst()
-                .map(p -> p.getParsedFeedback().getSummaryFeedback())
-                .orElse(currentSummary);
-
-        java.util.concurrent.CompletableFuture.runAsync(() -> {
-            try {
-                long t = System.currentTimeMillis();
-                String question = geminiService.generateNewQuestion(
-                        null, targetCompany, targetJob, previousQuestions, introContext);
-                log.info("[TIMING] NEW_QUESTION 사전 생성: {}ms, period={}", System.currentTimeMillis() - t, periodNum);
-
-                sessionRepository.findById(sessionId).ifPresent(fresh -> {
-                    fresh.getPeriods().stream()
-                            .filter(p -> p.getPeriodNum() == periodNum)
-                            .findFirst()
-                            .ifPresent(p -> p.setPreGeneratedNewQuestion(question));
-                    sessionRepository.save(fresh);
-                });
-            } catch (Exception e) {
-                log.warn("NEW_QUESTION 사전 생성 실패 — 나중에 즉시 생성으로 대체됨: {}", e.getMessage());
-            }
-        });
     }
 
     /**
