@@ -80,5 +80,9 @@ interview:
       path: ./uploads/interview-videos
     max-size: 100MB
 
+speller:
+  passport-key: ${SPELLER_PASSPORT_KEY:9aa854ff16fc37cf1e73b688b98e5ec3}
+  url: http://speller.cs.pusan.ac.kr/results
+
 server:
   port: 8080

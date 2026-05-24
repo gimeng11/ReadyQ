@@ -654,6 +654,11 @@ public class GeminiInterviewService {
     // Private helpers — Google GenAI SDK 호출
     // ───────────────────────────────────────────────
 
+    /** 다른 서비스에서 텍스트 Gemini 호출이 필요할 때 사용하는 public 래퍼 */
+    public String callGeminiTextPublic(String prompt) {
+        return callGeminiText(prompt);
+    }
+
     /**
      * 텍스트만으로 Gemini 호출. 429/503 시 최대 3회 재시도.
      */

@@ -1,0 +1,258 @@
+import { StyleSheet } from 'react-native'
+
+export const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F9FB',
+    paddingTop: 100,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 60,
+  },
+
+  // 입력
+  inputCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1.2,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
+  },
+  inputHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  inputLabel: {
+    fontSize: 14,
+    color: '#1E293B',
+  },
+  charCount: {
+    fontSize: 12,
+    color: '#94A3B8',
+  },
+  textInput: {
+    fontSize: 14,
+    color: '#1E293B',
+    minHeight: 200,
+    lineHeight: 22,
+    fontFamily: 'PretendardRegular',
+  },
+
+  // 버튼
+  reviewButton: {
+    backgroundColor: '#3281FF',
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  reviewButtonDisabled: {
+    backgroundColor: '#93C5FD',
+  },
+  reviewButtonText: {
+    color: '#fff',
+    fontSize: 15,
+  },
+  loadingHint: {
+    textAlign: 'center',
+    fontSize: 13,
+    color: '#94A3B8',
+    marginBottom: 16,
+  },
+
+  // 결과
+  resultContainer: {
+    marginTop: 16,
+  },
+  scoreCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1.2,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  scoreLabel: {
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 6,
+  },
+  scoreValue: {
+    fontSize: 42,
+    marginBottom: 10,
+  },
+  progressBg: {
+    width: '100%',
+    height: 8,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 4,
+    marginBottom: 14,
+  },
+  progressFill: {
+    height: 8,
+    borderRadius: 4,
+  },
+  overallComment: {
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+
+  // 탭
+  tabRow: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    padding: 4,
+    marginBottom: 16,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  tabActive: {
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 14,
+    color: '#94A3B8',
+  },
+  tabTextActive: {
+    color: '#1E293B',
+  },
+
+  // 섹션
+  section: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    color: '#1E293B',
+    marginBottom: 12,
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+    paddingHorizontal: 4,
+  },
+  bullet: {
+    fontSize: 14,
+    color: '#22C55E',
+    marginRight: 8,
+    marginTop: 2,
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#334155',
+    lineHeight: 22,
+  },
+
+  // 개선 제안 카드
+  improvementCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  quoteBox: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    padding: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#EF4444',
+  },
+  quoteText: {
+    fontSize: 13,
+    color: '#B91C1C',
+    lineHeight: 20,
+    fontStyle: 'italic',
+  },
+  arrowRow: {
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  arrow: {
+    fontSize: 18,
+    color: '#94A3B8',
+  },
+  suggestionBox: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 8,
+    padding: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#22C55E',
+  },
+  suggestionText: {
+    fontSize: 13,
+    color: '#15803D',
+    lineHeight: 20,
+  },
+  reasonText: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 8,
+    lineHeight: 18,
+  },
+
+  // 맞춤법
+  emptySpell: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  emptySpellText: {
+    fontSize: 14,
+    color: '#64748B',
+  },
+  spellerCard: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  spellerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  spellerToken: {
+    fontSize: 14,
+    color: '#EF4444',
+    textDecorationLine: 'line-through',
+  },
+  spellerArrow: {
+    fontSize: 14,
+    color: '#94A3B8',
+  },
+  spellerSuggestion: {
+    fontSize: 14,
+    color: '#15803D',
+  },
+  spellerHelp: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 6,
+    lineHeight: 18,
+  },
+})

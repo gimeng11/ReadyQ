@@ -37,7 +37,8 @@
       "Bash(unzip -Z1 ~/.gradle/caches/modules-2/files-2.1/com.google.genai/google-genai/0.7.0/a9108eb47cb3f5500ac1569d9f20218adf3c440b/google-genai-0.7.0.jar)",
       "Bash(grep \"\\\\.class$\")",
       "Bash(python3 *)",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(dir C:\\\\프로젝트\\\\ReadyQ\\\\frontend *)"
     ]
   }
 }
