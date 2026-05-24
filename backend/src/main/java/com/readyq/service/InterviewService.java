@@ -143,6 +143,9 @@ public class InterviewService {
 
         sessionRepository.save(session);
 
+        // 백그라운드에서 NEW_QUESTION 사전 생성 (다음 교시 즉시 전환을 위해)
+        preGenerateNewQuestion(sessionId, periodNum, session, periodResult);
+
         BreakTimeResponse.PeriodFeedbackSummary summary =
                 BreakTimeResponse.PeriodFeedbackSummary.builder()
                         .overallScore(parsedFeedback.getOverallScore())
@@ -211,24 +214,26 @@ public class InterviewService {
             questionType = QuestionType.FOLLOW_UP;
 
         } else if ("NEW_QUESTION".equalsIgnoreCase(request.getChoiceType())) {
-            List<String> previousQuestions = session.getPeriods().stream()
-                    .map(PeriodResult::getQuestion)
-                    .collect(Collectors.toList());
-
-            // 1교시 피드백 요약을 컨텍스트로 활용 (영상 재전송 없이 텍스트 기반 질문 생성)
-            String introContext = session.getPeriods().stream()
-                    .filter(p -> p.getPeriodNum() == 1 && p.getParsedFeedback() != null)
-                    .findFirst()
-                    .map(p -> p.getParsedFeedback().getSummaryFeedback())
-                    .orElse(null);
-
-            nextQuestion = geminiService.generateNewQuestion(
-                    null,
-                    session.getTargetCompany(),
-                    session.getTargetJob(),
-                    previousQuestions,
-                    introContext
-            );
+            // 사전 생성된 질문이 있으면 즉시 반환
+            String pregen = getPeriodResult(session, currentPeriodNum).getPreGeneratedNewQuestion();
+            if (pregen != null && !pregen.isBlank()) {
+                nextQuestion = pregen;
+                log.info("사전 생성된 NEW_QUESTION 사용. period={}", currentPeriodNum);
+            } else {
+                // fallback: 즉시 생성
+                List<String> previousQuestions = session.getPeriods().stream()
+                        .map(PeriodResult::getQuestion)
+                        .collect(Collectors.toList());
+                String introContext = session.getPeriods().stream()
+                        .filter(p -> p.getPeriodNum() == 1 && p.getParsedFeedback() != null)
+                        .findFirst()
+                        .map(p -> p.getParsedFeedback().getSummaryFeedback())
+                        .orElse(null);
+                nextQuestion = geminiService.generateNewQuestion(
+                        null, session.getTargetCompany(), session.getTargetJob(),
+                        previousQuestions, introContext);
+                log.info("NEW_QUESTION fallback 즉시 생성. period={}", currentPeriodNum);
+            }
             questionType = QuestionType.NEW;
 
         } else {
@@ -289,6 +294,9 @@ public class InterviewService {
         // 이전/첫 면접 점수 비교
         enrichSessionComparisons(userId, sessionId, finalFeedback);
 
+        // 최근 3회 면접 중 가장 낮았던 역량 → One Point 코칭
+        enrichOnePointCoaching(userId, sessionId, session, finalFeedback);
+
         session.setFinalFeedback(finalFeedback);
         session.setStatus(InterviewStatus.COMPLETED);
         session.setCompletedAt(LocalDateTime.now());
@@ -300,11 +308,39 @@ public class InterviewService {
     }
 
     // ───────────────────────────────────────────────
-    // 6. 과거 면접 목록 조회
+    // 6. 과거 면접 목록 조회 (고정 우선, 최신순)
     // ───────────────────────────────────────────────
 
     public List<InterviewSession> getInterviewHistory(String userId) {
-        return sessionRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        return sessionRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .sorted((a, b) -> {
+                    if (a.isPinned() == b.isPinned()) return 0;
+                    return a.isPinned() ? -1 : 1;
+                })
+                .collect(Collectors.toList());
+    }
+
+    // ───────────────────────────────────────────────
+    // 6a. 면접 세션 삭제
+    // ───────────────────────────────────────────────
+
+    public void deleteSession(String userId, String sessionId) {
+        InterviewSession session = getSessionAndValidateOwner(sessionId, userId);
+        deleteSessionVideos(userId, sessionId);
+        sessionRepository.delete(session);
+        log.info("면접 세션 삭제 완료. userId={}, sessionId={}", userId, sessionId);
+    }
+
+    // ───────────────────────────────────────────────
+    // 6b. 고정 / 해제 토글
+    // ───────────────────────────────────────────────
+
+    public boolean togglePin(String userId, String sessionId) {
+        InterviewSession session = getSessionAndValidateOwner(sessionId, userId);
+        session.setPinned(!session.isPinned());
+        sessionRepository.save(session);
+        log.info("고정 토글. sessionId={}, pinned={}", sessionId, session.isPinned());
+        return session.isPinned();
     }
 
     // ───────────────────────────────────────────────
@@ -441,6 +477,105 @@ public class InterviewService {
                     "이전 면접과 동일한 점수입니다.");
         } else {
             finalFeedback.setComparisonWithPrev("첫 번째 면접입니다.");
+        }
+    }
+
+    /**
+     * submitPeriodAnswer 직후 백그라운드 스레드에서 NEW_QUESTION을 사전 생성하여 DB에 저장한다.
+     * 사용자가 쉬는시간 화면을 보는 동안 생성이 완료되어 다음 교시 전환이 즉시 이루어진다.
+     */
+    private void preGenerateNewQuestion(String sessionId, int periodNum,
+                                        InterviewSession session, PeriodResult currentPeriod) {
+        final String targetCompany = session.getTargetCompany();
+        final String targetJob = session.getTargetJob();
+        final List<String> previousQuestions = session.getPeriods().stream()
+                .map(PeriodResult::getQuestion)
+                .collect(Collectors.toList());
+        final String currentSummary = currentPeriod.getParsedFeedback() != null
+                ? currentPeriod.getParsedFeedback().getSummaryFeedback()
+                : null;
+        final String introContext = session.getPeriods().stream()
+                .filter(p -> p.getPeriodNum() == 1 && p.getParsedFeedback() != null)
+                .findFirst()
+                .map(p -> p.getParsedFeedback().getSummaryFeedback())
+                .orElse(currentSummary);
+
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                long t = System.currentTimeMillis();
+                String question = geminiService.generateNewQuestion(
+                        null, targetCompany, targetJob, previousQuestions, introContext);
+                log.info("[TIMING] NEW_QUESTION 사전 생성: {}ms, period={}", System.currentTimeMillis() - t, periodNum);
+
+                sessionRepository.findById(sessionId).ifPresent(fresh -> {
+                    fresh.getPeriods().stream()
+                            .filter(p -> p.getPeriodNum() == periodNum)
+                            .findFirst()
+                            .ifPresent(p -> p.setPreGeneratedNewQuestion(question));
+                    sessionRepository.save(fresh);
+                });
+            } catch (Exception e) {
+                log.warn("NEW_QUESTION 사전 생성 실패 — 나중에 즉시 생성으로 대체됨: {}", e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * 최근 3회(현재 세션 제외) 완료된 면접의 역량 점수를 평균 내어 가장 낮은 항목을 찾고
+     * One Point 코칭 메시지를 생성하여 finalFeedback에 설정한다.
+     * 이전 면접이 없으면 현재 세션의 역량 점수에서 최약점을 사용한다.
+     */
+    private void enrichOnePointCoaching(String userId, String currentSessionId,
+                                        InterviewSession currentSession, FinalFeedback finalFeedback) {
+        try {
+            List<InterviewSession> completed = sessionRepository.findByUserIdAndStatus(userId, InterviewStatus.COMPLETED);
+            List<InterviewSession> recent3 = completed.stream()
+                    .filter(s -> !s.getId().equals(currentSessionId))
+                    .filter(s -> s.getFinalFeedback() != null && s.getFinalFeedback().getCompetencyScores() != null)
+                    .filter(s -> s.getCompletedAt() != null)
+                    .sorted((a, b) -> b.getCompletedAt().compareTo(a.getCompletedAt()))
+                    .limit(3)
+                    .collect(Collectors.toList());
+
+            Map<String, Double> avgScores = new HashMap<>();
+            // answerClarity는 프론트 역량 UI에 미노출 — 5개만 사용
+            String[] keys = {"logicStructure", "speechSpeed", "voiceVolume", "eyeContact", "fillerWords"};
+
+            if (!recent3.isEmpty()) {
+                for (String key : keys) {
+                    double sum = 0;
+                    int count = 0;
+                    for (InterviewSession s : recent3) {
+                        Map<String, Integer> cs = s.getFinalFeedback().getCompetencyScores();
+                        if (cs != null && cs.containsKey(key)) {
+                            sum += cs.get(key);
+                            count++;
+                        }
+                    }
+                    if (count > 0) avgScores.put(key, sum / count);
+                }
+            } else {
+                // 첫 번째 면접이면 현재 세션 점수 사용
+                Map<String, Integer> cs = finalFeedback.getCompetencyScores();
+                if (cs != null) cs.forEach((k, v) -> avgScores.put(k, (double) v));
+            }
+
+            if (avgScores.isEmpty()) return;
+
+            String weakest = avgScores.entrySet().stream()
+                    .min(Map.Entry.comparingByValue())
+                    .map(Map.Entry::getKey)
+                    .orElse(null);
+
+            if (weakest == null) return;
+
+            String coaching = geminiService.generateOnePointCoaching(weakest, currentSession.getTargetJob());
+            finalFeedback.setWeakestCompetency(weakest);
+            finalFeedback.setOnePointCoachingMessage(coaching);
+            log.info("One Point 코칭 설정 완료. weakest={}, message={}", weakest, coaching);
+
+        } catch (Exception e) {
+            log.warn("One Point 코칭 생성 중 오류 — 건너뜀: {}", e.getMessage());
         }
     }
 

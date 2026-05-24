@@ -1,5 +1,4 @@
 import { StyleSheet } from 'react-native'
-import CustomButton from '../../components/CustomButton'
 
 export const styles = StyleSheet.create({
   container: {
@@ -13,21 +12,54 @@ export const styles = StyleSheet.create({
     width: '100%',
   },
   card: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     borderRadius: 12,
     backgroundColor: '#fff',
     marginBottom: 14,
     borderWidth: 1.2,
     borderColor: '#ddd',
   },
+  cardPinned: {
+    borderColor: '#3281FF',
+    borderWidth: 1.5,
+    backgroundColor: '#F5F9FF',
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cardInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  pinnedBadge: {
+    fontSize: 11,
+    color: '#3281FF',
+    marginBottom: 4,
+  },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 15,
   },
   cardDesc: {
     fontSize: 13,
-    marginTop: 6,
+    marginTop: 4,
     color: '#64748B',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionBtn: {
+    padding: 6,
+  },
+  actionIcon: {
+    fontSize: 18,
+    opacity: 0.35,
+  },
+  actionIconActive: {
+    opacity: 1,
   },
 })

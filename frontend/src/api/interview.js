@@ -49,3 +49,11 @@ export const getPeriodFeedback = (sessionId, num) =>
 // 면접 기록 목록 조회
 export const getInterviewHistory = () =>
   apiCallAuth('/api/interview/history')
+
+// 면접 세션 삭제
+export const deleteInterview = (sessionId) =>
+  apiCallAuth(`/api/interview/${sessionId}`, { method: 'DELETE' })
+
+// 상단 고정 / 해제 토글
+export const togglePinInterview = (sessionId) =>
+  apiCallAuth(`/api/interview/${sessionId}/pin`, { method: 'PATCH' })

@@ -40,4 +40,10 @@ public class FinalFeedback {
     private Integer prevSessionScore;
 
     private Integer firstSessionScore;
+
+    // 최근 3회 면접 중 가장 낮았던 역량 키 (e.g. "fillerWords")
+    private String weakestCompetency;
+
+    // 해당 역량에 대한 One Point 코칭 메시지
+    private String onePointCoachingMessage;
 }

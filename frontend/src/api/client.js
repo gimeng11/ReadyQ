@@ -36,6 +36,12 @@ export async function apiCall(endpoint, options = {}) {
     const text = await res.text()
     console.log('[API] 응답 raw:', text.substring(0, 300))
 
+    // 204 No Content 등 빈 응답 처리
+    if (!text) {
+      if (!res.ok) throw new Error(`서버 오류 (status: ${res.status})`)
+      return null
+    }
+
     let data
     try {
       data = JSON.parse(text)
@@ -45,11 +51,11 @@ export async function apiCall(endpoint, options = {}) {
     console.log('[API] 응답 data:', JSON.stringify(data))
 
     if (!res.ok) {
-      if (data.errors) {
+      if (data?.errors) {
         const messages = Object.values(data.errors).join('\n')
         throw new Error(messages)
       }
-      throw new Error(data.message || '서버 오류가 발생했습니다')
+      throw new Error(data?.message || '서버 오류가 발생했습니다')
     }
 
     return data

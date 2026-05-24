@@ -38,5 +38,8 @@ public class PeriodResult {
     // submitPeriodAnswer 시 생성한 꼬리질문 5개 (getNextOptions에서 재활용)
     private List<String> followUpQuestions;
 
+    // submitPeriodAnswer 시 백그라운드로 사전 생성된 새 질문 (NEW_QUESTION 즉시 반환용)
+    private String preGeneratedNewQuestion;
+
     private LocalDateTime completedAt;
 }

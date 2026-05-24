@@ -7,6 +7,15 @@ import Header from '../../components/Header'
 import AnalysisSection from '../../components/AnalysisSection'
 import { getSessionFeedback } from '../../api/interview'
 
+const COMPETENCY_KO = {
+  logicStructure: '논리 구조력',
+  speechSpeed:    '말하기 속도',
+  voiceVolume:    '목소리 전달력',
+  eyeContact:     '비언어적 태도',
+  fillerWords:    '발화 유창성',
+  answerClarity:  '답변 명확성',
+}
+
 // 역량 키 → 한글 라벨 + 아이콘 매핑
 const COMPETENCY_CONFIG = [
   { key: 'logicStructure', title: '논리 구조력', icon: require('../../../assets/icons/logic.png') },
@@ -76,6 +85,8 @@ export default function FeedbackScreen({ navigation, route }) {
   const totalScore = ff?.totalScore ?? null
   const prevScore = ff?.prevSessionScore ?? null
   const firstScore = ff?.firstSessionScore ?? null
+  const weakestKey = ff?.weakestCompetency ?? null
+  const coachingMsg = ff?.onePointCoachingMessage ?? null
 
   const formatComp = (score) => {
     if (score == null || totalScore == null) return '-'
@@ -222,6 +233,26 @@ export default function FeedbackScreen({ navigation, route }) {
                     showDivider={false}
                   />
                 </View>
+
+                <View style={{ marginHorizontal: -20 }}>
+                  <View style={styles.divider} />
+                </View>
+
+                {!!coachingMsg && (
+                  <View style={styles.coachingCard}>
+                    <View style={styles.coachingHeader}>
+                      <CustomText weight="bold" style={styles.coachingBadge}>
+                        One Point 코칭
+                      </CustomText>
+                      {!!weakestKey && (
+                        <CustomText weight="medium" style={styles.coachingWeakLabel}>
+                          집중 역량: {COMPETENCY_KO[weakestKey] ?? weakestKey}
+                        </CustomText>
+                      )}
+                    </View>
+                    <CustomText style={styles.coachingMsg}>{coachingMsg}</CustomText>
+                  </View>
+                )}
 
                 <View style={{ marginHorizontal: -20 }}>
                   <View style={styles.divider} />

@@ -32,6 +32,17 @@ public class GeminiInterviewService {
     public record GeminiFileRef(String uri, String mimeType) {}
     public record PeriodAnalysisResult(String feedbackJson, List<String> followUpQuestions) {}
 
+    private static final List<String> COMPETENCY_KEYS = List.of(
+            "logicStructure", "speechSpeed", "voiceVolume", "eyeContact", "fillerWords", "answerClarity");
+
+    private static final Map<String, String> COMPETENCY_KO = Map.of(
+            "logicStructure", "논리 구조력",
+            "speechSpeed",    "말하기 속도",
+            "voiceVolume",    "목소리 전달력",
+            "eyeContact",     "비언어적 태도",
+            "fillerWords",    "발화 유창성",
+            "answerClarity",  "답변 명확성");
+
     private static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
     private static final String GEMINI_UPLOAD_URL = "https://generativelanguage.googleapis.com/upload/v1beta/files";
     private static final String GEMINI_MODEL = "gemini-2.5-flash";
@@ -372,46 +383,56 @@ public class GeminiInterviewService {
 
                 "또한 이 질문에 자연스럽게 이어질 꼬리질문 5개를 생성하세요.\n\n" +
 
-                "preamble 없이 순수 JSON만 반환 (마크다운 코드블록 없이):\n" +
+                "[출력 예시 — 아래 형식을 반드시 준수하세요]\n" +
                 "{\n" +
                 "  \"feedback\": {\n" +
-                "    \"scores\": {\"logicStructure\":점수,\"speechSpeed\":점수,\"voiceVolume\":점수,\"eyeContact\":점수,\"fillerWords\":점수,\"answerClarity\":점수},\n" +
-                "    \"overallScore\": 종합점수,\n" +
-                "    \"summaryFeedback\": \"한 문장 요약\",\n" +
-                "    \"detailFeedback\": {\"logicStructure\":\"피드백\",\"speechSpeed\":\"SPM 수치 포함\",\"voiceVolume\":\"수치 포함\",\"eyeContact\":\"피드백\",\"fillerWords\":\"횟수 포함\",\"answerClarity\":\"피드백\"},\n" +
-                "    \"improvementTips\": [\"팁1\",\"팁2\",\"팁3\"]\n" +
+                "    \"scores\": {\"logicStructure\":72,\"speechSpeed\":65,\"voiceVolume\":78,\"eyeContact\":80,\"fillerWords\":60,\"answerClarity\":75},\n" +
+                "    \"overallScore\": 72,\n" +
+                "    \"summaryFeedback\": \"논리적 흐름은 양호하나 말하기 속도가 다소 빠르고 추임새가 자주 나타났어요.\",\n" +
+                "    \"detailFeedback\": {\"logicStructure\":\"STAR 구조로 답변했으며 근거가 명확했어요.\",\"speechSpeed\":\"약 380 SPM으로 다소 빠른 편이에요.\",\"voiceVolume\":\"적절한 억양 변화를 보였어요.\",\"eyeContact\":\"카메라 시선 처리가 자연스러웠어요.\",\"fillerWords\":\"분당 약 8회 추임새가 나타났어요.\",\"answerClarity\":\"질문 의도에 맞게 핵심을 전달했어요.\"},\n" +
+                "    \"improvementTips\": [\"말하기 속도를 의식적으로 늦춰보세요.\",\"추임새 대신 짧은 침묵으로 생각 시간을 가져보세요.\",\"두괄식 구조로 결론을 먼저 말해보세요.\"]\n" +
                 "  },\n" +
-                "  \"followUpQuestions\": [\"질문1\",\"질문2\",\"질문3\",\"질문4\",\"질문5\"]\n" +
-                "}",
+                "  \"followUpQuestions\": [\"그 경험에서 본인이 맡은 구체적인 역할은 무엇이었나요?\",\"그 과정에서 가장 어려웠던 점은 무엇인가요?\",\"그 결과로 팀에 어떤 영향이 있었나요?\",\"비슷한 상황이 또 생긴다면 어떻게 다르게 접근하시겠나요?\",\"그 경험을 통해 배운 점을 현재 직무에 어떻게 적용하고 있나요?\"]\n" +
+                "}\n\n" +
+                "실제 분석 결과를 위 형식으로 preamble 없이 순수 JSON만 반환 (마크다운 코드블록 없이):",
                 interviewerDescription, question, coverLetterPart);
 
-        try {
-            long t = System.currentTimeMillis();
-            String raw = callGeminiWithVideo(fileUri, mimeType, prompt);
-            log.info("[TIMING] generatePeriodAnalysis Gemini 호출: {}ms", System.currentTimeMillis() - t);
-            String combinedJson = extractJson(raw);
+        int maxSchemaAttempts = 2;
+        for (int schemaAttempt = 1; schemaAttempt <= maxSchemaAttempts; schemaAttempt++) {
+            try {
+                long t = System.currentTimeMillis();
+                String raw = callGeminiWithVideo(fileUri, mimeType, prompt);
+                log.info("[TIMING] generatePeriodAnalysis Gemini 호출 (시도 {}): {}ms", schemaAttempt, System.currentTimeMillis() - t);
+                String combinedJson = extractJson(raw);
 
-            JsonNode root = objectMapper.readTree(combinedJson);
-            String feedbackJson = objectMapper.writeValueAsString(root.path("feedback"));
+                validatePeriodAnalysisJson(combinedJson);
 
-            List<String> followUpQuestions = new ArrayList<>();
-            JsonNode questionsNode = root.path("followUpQuestions");
-            if (questionsNode.isArray()) {
-                questionsNode.forEach(q -> followUpQuestions.add(q.asText()));
+                JsonNode root = objectMapper.readTree(combinedJson);
+                String feedbackJson = objectMapper.writeValueAsString(root.path("feedback"));
+
+                List<String> followUpQuestions = new ArrayList<>();
+                JsonNode questionsNode = root.path("followUpQuestions");
+                if (questionsNode.isArray()) {
+                    questionsNode.forEach(q -> followUpQuestions.add(q.asText()));
+                }
+                if (followUpQuestions.isEmpty()) {
+                    followUpQuestions.addAll(defaultFollowUpQuestions());
+                }
+                return new PeriodAnalysisResult(feedbackJson, followUpQuestions);
+
+            } catch (Exception e) {
+                if (schemaAttempt == maxSchemaAttempts) {
+                    log.warn("Gemini 피드백+꼬리질문 생성 최종 실패 — fallback 사용: {}", e.getMessage());
+                } else {
+                    log.warn("Gemini JSON 스키마 검증 실패 — 재시도 ({}/{}): {}", schemaAttempt, maxSchemaAttempts, e.getMessage());
+                }
             }
-            if (followUpQuestions.isEmpty()) {
-                followUpQuestions.addAll(defaultFollowUpQuestions());
-            }
-            return new PeriodAnalysisResult(feedbackJson, followUpQuestions);
-
-        } catch (Exception e) {
-            log.warn("Gemini 피드백+꼬리질문 생성 실패 — fallback 사용: {}", e.getMessage());
-            String feedbackJson = "{\"scores\":{\"logicStructure\":70,\"speechSpeed\":70,\"voiceVolume\":70,\"eyeContact\":70,\"fillerWords\":70,\"answerClarity\":70}," +
-                    "\"overallScore\":70,\"summaryFeedback\":\"AI 분석을 일시적으로 사용할 수 없습니다. 답변을 잘 하셨습니다.\"," +
-                    "\"detailFeedback\":{\"logicStructure\":\"분석 불가\",\"speechSpeed\":\"분석 불가\",\"voiceVolume\":\"분석 불가\",\"eyeContact\":\"분석 불가\",\"fillerWords\":\"분석 불가\",\"answerClarity\":\"분석 불가\"}," +
-                    "\"improvementTips\":[\"다음 답변에서도 자신감 있게 말해보세요.\",\"핵심을 먼저 말하는 두괄식 구조를 활용해 보세요.\",\"구체적인 사례를 들어 답변을 풍부하게 만들어 보세요.\"]}";
-            return new PeriodAnalysisResult(feedbackJson, defaultFollowUpQuestions());
         }
+        String feedbackJson = "{\"scores\":{\"logicStructure\":70,\"speechSpeed\":70,\"voiceVolume\":70,\"eyeContact\":70,\"fillerWords\":70,\"answerClarity\":70}," +
+                "\"overallScore\":70,\"summaryFeedback\":\"AI 분석을 일시적으로 사용할 수 없습니다. 답변을 잘 하셨습니다.\"," +
+                "\"detailFeedback\":{\"logicStructure\":\"분석 불가\",\"speechSpeed\":\"분석 불가\",\"voiceVolume\":\"분석 불가\",\"eyeContact\":\"분석 불가\",\"fillerWords\":\"분석 불가\",\"answerClarity\":\"분석 불가\"}," +
+                "\"improvementTips\":[\"다음 답변에서도 자신감 있게 말해보세요.\",\"핵심을 먼저 말하는 두괄식 구조를 활용해 보세요.\",\"구체적인 사례를 들어 답변을 풍부하게 만들어 보세요.\"]}";
+        return new PeriodAnalysisResult(feedbackJson, defaultFollowUpQuestions());
     }
 
     private List<String> defaultFollowUpQuestions() {
@@ -674,6 +695,83 @@ public class GeminiInterviewService {
             Thread.sleep(Math.min(2000L * attempt, 10000L));
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
+        }
+    }
+
+    // ───────────────────────────────────────────────
+    // JSON 스키마 검증
+    // ───────────────────────────────────────────────
+
+    /**
+     * generatePeriodAnalysis 결합 JSON의 필수 스키마를 검증한다.
+     * 누락 필드가 있거나 타입이 맞지 않으면 IllegalStateException을 던진다.
+     */
+    private void validatePeriodAnalysisJson(String json) throws Exception {
+        JsonNode root = objectMapper.readTree(json);
+
+        JsonNode feedback = root.path("feedback");
+        if (feedback.isMissingNode() || feedback.isNull()) {
+            throw new IllegalStateException("JSON 스키마 오류: 'feedback' 필드가 없습니다.");
+        }
+
+        JsonNode scores = feedback.path("scores");
+        for (String key : COMPETENCY_KEYS) {
+            JsonNode val = scores.path(key);
+            if (val.isMissingNode() || !val.isNumber()) {
+                throw new IllegalStateException("JSON 스키마 오류: scores." + key + " 누락 또는 숫자 아님");
+            }
+        }
+
+        if (!feedback.path("overallScore").isNumber()) {
+            throw new IllegalStateException("JSON 스키마 오류: 'overallScore' 누락 또는 숫자 아님");
+        }
+
+        String summary = feedback.path("summaryFeedback").asText("");
+        if (summary.isBlank()) {
+            throw new IllegalStateException("JSON 스키마 오류: 'summaryFeedback' 비어 있음");
+        }
+
+        JsonNode detailFeedback = feedback.path("detailFeedback");
+        for (String key : COMPETENCY_KEYS) {
+            if (detailFeedback.path(key).asText("").isBlank()) {
+                throw new IllegalStateException("JSON 스키마 오류: detailFeedback." + key + " 비어 있음");
+            }
+        }
+
+        JsonNode tips = feedback.path("improvementTips");
+        if (!tips.isArray() || tips.isEmpty()) {
+            throw new IllegalStateException("JSON 스키마 오류: 'improvementTips' 배열이 비어 있음");
+        }
+
+        JsonNode followUpQuestions = root.path("followUpQuestions");
+        if (!followUpQuestions.isArray() || followUpQuestions.isEmpty()) {
+            throw new IllegalStateException("JSON 스키마 오류: 'followUpQuestions' 배열이 비어 있음");
+        }
+    }
+
+    // ───────────────────────────────────────────────
+    // One Point 코칭 메시지 생성
+    // ───────────────────────────────────────────────
+
+    /**
+     * 최근 3회 면접에서 가장 낮았던 역량 키를 받아 집중 코칭 메시지를 생성한다.
+     */
+    public String generateOnePointCoaching(String weakestCompetencyKey, String targetJob) {
+        String koName = COMPETENCY_KO.getOrDefault(weakestCompetencyKey, weakestCompetencyKey);
+        String job = (targetJob != null && !targetJob.isBlank()) ? targetJob : "지원 직무";
+        String prompt = String.format(
+                "당신은 취업 면접 전문 코치입니다.\n" +
+                "지원자의 최근 3회 '%s' 면접 데이터를 분석한 결과, '%s(%s)' 역량이 지속적으로 가장 낮게 나타났습니다.\n\n" +
+                "이 역량을 집중 개선할 수 있는 One Point 코칭 메시지를 작성해주세요.\n" +
+                "조건: 실천 가능한 구체적 방법 1가지, 50자 이내, 격려하는 어조.\n\n" +
+                "코칭 메시지 한 문장만 반환하세요.",
+                job, koName, weakestCompetencyKey);
+
+        try {
+            return callGeminiText(prompt).trim();
+        } catch (Exception e) {
+            log.warn("One Point 코칭 생성 실패 — 기본 메시지 사용: {}", e.getMessage());
+            return koName + " 역량을 집중적으로 연습하면 빠르게 향상될 수 있어요. 화이팅!";
         }
     }
 

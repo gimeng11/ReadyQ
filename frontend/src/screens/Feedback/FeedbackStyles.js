@@ -217,4 +217,35 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
     paddingLeft: 4,
   },
+  coachingCard: {
+    backgroundColor: '#EEF4FF',
+    borderRadius: 14,
+    padding: 18,
+    marginVertical: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3281FF',
+  },
+  coachingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 10,
+  },
+  coachingBadge: {
+    fontSize: 13,
+    color: '#3281FF',
+    backgroundColor: '#D6E8FF',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  coachingWeakLabel: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  coachingMsg: {
+    fontSize: 14,
+    color: '#1E3A5F',
+    lineHeight: 22,
+  },
 })

@@ -1,15 +1,15 @@
-import { View, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native'
-import { useState, useEffect } from 'react'
+import { View, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Image } from 'react-native'
+import { useState, useEffect, useCallback } from 'react'
+import { useFocusEffect } from '@react-navigation/native'
 import { styles } from './ArchiveStyles'
 import CustomText from '../../components/CustomText'
 import Header from '../../components/Header'
-import { getInterviewHistory } from '../../api/interview'
+import { getInterviewHistory, deleteInterview, togglePinInterview } from '../../api/interview'
 
 const formatDate = (dateVal) => {
   if (!dateVal) return '-'
   let d
   if (Array.isArray(dateVal)) {
-    // LocalDateTime as array [year, month, day, ...]
     d = new Date(dateVal[0], dateVal[1] - 1, dateVal[2])
   } else {
     d = new Date(dateVal)
@@ -24,7 +24,8 @@ export default function ArchiveScreen({ navigation }) {
   const [archiveList, setArchiveList] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const loadHistory = useCallback(() => {
+    setLoading(true)
     getInterviewHistory()
       .then(sessions => {
         const list = sessions
@@ -33,6 +34,7 @@ export default function ArchiveScreen({ navigation }) {
             id: s.id,
             title: s.title || '제목 없음',
             date: formatDate(s.completedAt || s.createdAt),
+            pinned: s.pinned ?? false,
           }))
         setArchiveList(list)
       })
@@ -40,9 +42,50 @@ export default function ArchiveScreen({ navigation }) {
       .finally(() => setLoading(false))
   }, [])
 
+  useFocusEffect(loadHistory)
+
+  const handleDelete = (item) => {
+    Alert.alert(
+      '면접 삭제',
+      `'${item.title}' 면접 기록을 삭제할까요?`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteInterview(item.id)
+              setArchiveList(prev => prev.filter(a => a.id !== item.id))
+            } catch (e) {
+              Alert.alert('오류', '삭제에 실패했어요.')
+            }
+          },
+        },
+      ]
+    )
+  }
+
+  const handleTogglePin = async (item) => {
+    try {
+      const res = await togglePinInterview(item.id)
+      const newPinned = res?.pinned ?? !item.pinned
+      setArchiveList(prev => {
+        const updated = prev.map(a =>
+          a.id === item.id ? { ...a, pinned: newPinned } : a
+        )
+        return [
+          ...updated.filter(a => a.pinned),
+          ...updated.filter(a => !a.pinned),
+        ]
+      })
+    } catch (e) {
+      Alert.alert('오류', '고정 변경에 실패했어요.')
+    }
+  }
+
   return (
     <View style={styles.container}>
-
       <Header
         title='면접 아카이브'
         onBack={() => navigation.goBack()}
@@ -63,7 +106,8 @@ export default function ArchiveScreen({ navigation }) {
             archiveList.map((item) => (
               <TouchableOpacity
                 key={item.id}
-                style={styles.card}
+                style={[styles.card, item.pinned && styles.cardPinned]}
+                activeOpacity={0.75}
                 onPress={() =>
                   navigation.navigate('Feedback', {
                     sessionId: item.id,
@@ -73,19 +117,42 @@ export default function ArchiveScreen({ navigation }) {
                   })
                 }
               >
-                <CustomText weight="bold" style={styles.cardTitle}>
-                  {item.title}
-                </CustomText>
+                <View style={styles.cardRow}>
+                  <View style={styles.cardInfo}>
+                    {item.pinned && (
+                      <CustomText style={styles.pinnedBadge}>고정됨</CustomText>
+                    )}
+                    <CustomText weight="bold" style={styles.cardTitle} numberOfLines={1}>
+                      {item.title}
+                    </CustomText>
+                    <CustomText style={styles.cardDesc}>{item.date}</CustomText>
+                  </View>
 
-                <CustomText style={styles.cardDesc}>
-                  {item.date}
-                </CustomText>
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity
+                      style={styles.actionBtn}
+                      onPress={() => handleTogglePin(item)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <CustomText style={[styles.actionIcon, item.pinned && styles.actionIconActive]}>
+                        📌
+                      </CustomText>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.actionBtn}
+                      onPress={() => handleDelete(item)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <CustomText style={styles.actionIcon}>🗑️</CustomText>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               </TouchableOpacity>
             ))
           )}
         </ScrollView>
       )}
-
     </View>
   )
 }

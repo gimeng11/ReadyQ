@@ -49,4 +49,7 @@ public class InterviewSession {
     private LocalDateTime createdAt;
 
     private LocalDateTime completedAt;
+
+    @Builder.Default
+    private boolean pinned = false;
 }

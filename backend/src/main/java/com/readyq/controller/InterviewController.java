@@ -148,4 +148,30 @@ public class InterviewController {
                 auth.getName(), sessionId, num);
         return ResponseEntity.ok(feedback);
     }
+
+    /**
+     * DELETE /api/interview/{sessionId}
+     * 면접 세션 삭제 (영상 파일 포함)
+     */
+    @DeleteMapping("/{sessionId}")
+    public ResponseEntity<Void> deleteSession(
+            Authentication auth,
+            @PathVariable String sessionId) {
+
+        interviewService.deleteSession(auth.getName(), sessionId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * PATCH /api/interview/{sessionId}/pin
+     * 상단 고정 / 해제 토글. 응답: { "pinned": true/false }
+     */
+    @PatchMapping("/{sessionId}/pin")
+    public ResponseEntity<java.util.Map<String, Boolean>> togglePin(
+            Authentication auth,
+            @PathVariable String sessionId) {
+
+        boolean pinned = interviewService.togglePin(auth.getName(), sessionId);
+        return ResponseEntity.ok(java.util.Map.of("pinned", pinned));
+    }
 }
