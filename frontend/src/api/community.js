@@ -26,7 +26,7 @@ export const toggleScrap = (id) => apiCallAuth(`/api/boards/${id}/scraps`, {
   method: 'POST',
 });
 
-export const getComments = (boardId) => apiCall(`/api/boards/${boardId}/comments`);
+export const getComments = (boardId) => apiCallAuth(`/api/boards/${boardId}/comments`);
 
 export const createComment = (boardId, data) => apiCallAuth(`/api/boards/${boardId}/comments`, {
   method: 'POST',
@@ -37,3 +37,11 @@ export const getMyPosts = () => apiCallAuth('/api/boards/myposts');
 export const getLikedPosts = () => apiCallAuth('/api/boards/liked');
 export const getScrappedPosts = () => apiCallAuth('/api/boards/scrapped');
 export const getCommentedPosts = () => apiCallAuth('/api/boards/commented');
+export const updateComment = (commentId, data) => apiCallAuth(`/api/comments/${commentId}`, {
+  method: 'PUT',
+  body: JSON.stringify(data),
+});
+
+export const deleteComment = (commentId) => apiCallAuth(`/api/comments/${commentId}`, {
+  method: 'DELETE',
+});

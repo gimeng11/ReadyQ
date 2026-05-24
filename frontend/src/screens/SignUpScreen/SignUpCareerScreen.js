@@ -1,12 +1,15 @@
-import { View, TouchableOpacity, ScrollView } from 'react-native'
+import { View, TouchableOpacity, ScrollView, Alert } from 'react-native'
 import { useState } from 'react'
 import { styles } from './SignUpCareerStyles'
 import CustomText from '../../components/CustomText'
 import CustomButton from '../../components/CustomButton'
 import Header from '../../components/Header'
+import { signUp } from '../../api/auth'
 
-export default function SignUpCareerScreen({ navigation }) {
+export default function SignUpCareerScreen({ navigation, route }) {
+  const { formData } = route.params
   const [selected, setSelected] = useState(null)
+  const [loading, setLoading] = useState(false)
 
   const careers = [
     {
@@ -72,10 +75,26 @@ export default function SignUpCareerScreen({ navigation }) {
           ))}
 
           <CustomButton
-            title="완료"
+            title={loading ? '처리 중...' : '완료'}
             type="secondary"
             style={styles.button}
-            onPress={() => navigation.navigate('Home')}
+            onPress={async () => {
+              if (!selected) {
+                Alert.alert('알림', '경력을 선택해주세요')
+                return
+              }
+              setLoading(true)
+              try {
+                await signUp({ ...formData, career: selected })
+                Alert.alert('완료', '회원가입이 완료되었습니다', [
+                  { text: '확인', onPress: () => navigation.navigate('Login') },
+                ])
+              } catch (e) {
+                Alert.alert('오류', e.message)
+              } finally {
+                setLoading(false)
+              }
+            }}
           />
 
         </View>

@@ -12,6 +12,7 @@ public class BoardResponse {
     private String preview;
     private String category;
     private String author; // 익명 처리된 작성자명
+    private String career;
     private String date;
     private int views;
     private int likes;
@@ -30,6 +31,7 @@ public class BoardResponse {
 
         // 익명이면 익명으로 아니면 실제 닉네임 반환
         this.author = board.isAnonymous() ? "익명" : board.getNickname();
+        this.career = board.isAnonymous() ? null : board.getCareer();
 
         this.date = board.getCreatedAt() != null ? board.getCreatedAt().format(DateTimeFormatter.ofPattern("MM.dd")) : "";
         this.views = board.getViews();

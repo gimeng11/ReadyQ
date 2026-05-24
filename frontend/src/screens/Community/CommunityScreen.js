@@ -27,7 +27,7 @@ function PostCard({ item }) {
       </View>
       <View style={styles.frameView}>
         <View style={styles.uxuiParent}>
-          <Text style={styles.uxui}>{item.category || 'UXUI'}</Text>
+          <Text style={styles.uxui}>{item.category || ''}</Text>
           <Text style={styles.uxui}> ・ </Text>
           <Text style={styles.uxui}>{item.date || item.createdAt?.slice(0, 10)}</Text>
           <Text style={styles.uxui}> ・ </Text>

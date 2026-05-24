@@ -2,8 +2,11 @@ import { View, Text, Image, TouchableOpacity } from 'react-native';
 import styles from './HomeStyles';
 import BottomTab from '../../components/BottomTab';
 import CustomButton from '../../components/CustomButton';
+import { useUser } from '../../context/UserContext';
 
 export default function HomeScreen({ navigation }) {
+  const { userInfo } = useUser();
+
   return (
     <View style={styles.container}>
         
@@ -15,7 +18,7 @@ export default function HomeScreen({ navigation }) {
                 style={styles.logo}
               />
         <Text style={styles.title}>
-          레디큐님, 안녕하세요{"\n"}
+          {userInfo.nickname}님, 안녕하세요{"\n"}
           지금부터 AI 면접을 시작할까요?
         </Text>
 

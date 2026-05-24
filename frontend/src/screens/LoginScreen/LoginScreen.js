@@ -8,8 +8,10 @@ import CustomText from '../../components/CustomText'
 import { login } from '../../api/auth'
 import { saveToken } from '../../utils/storage'
 import { BASE_URL } from '../../api/client'
+import { useUser } from '../../context/UserContext'
 
 export default function LoginScreen({ navigation }) {
+  const { fetchUserInfo } = useUser();
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -49,6 +51,7 @@ export default function LoginScreen({ navigation }) {
     try {
       const data = await login(username, password)
       await saveToken(data.token)
+      await fetchUserInfo()
       navigation.reset({ index: 0, routes: [{ name: 'Home' }] })
     } catch (e) {
       Alert.alert('로그인 실패', e.message)

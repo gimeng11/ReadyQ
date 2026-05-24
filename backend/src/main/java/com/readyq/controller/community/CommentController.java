@@ -9,6 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -28,8 +29,11 @@ public class CommentController {
 
     // 댓글 조회
     @GetMapping("/api/boards/{boardId}/comments")
-    public ResponseEntity<List<CommentResponse>> getComments(@PathVariable String boardId) {
-        return ResponseEntity.ok(commentService.getCommentsByBoardId(boardId));
+    public ResponseEntity<List<CommentResponse>> getComments(
+            @PathVariable String boardId,
+            Authentication authentication) {
+        String currentUsername = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(commentService.getCommentsByBoardId(boardId, currentUsername));
     }
 
     // 댓글 수정
@@ -44,11 +48,11 @@ public class CommentController {
 
     // 댓글 삭제
     @DeleteMapping("/api/comments/{commentId}")
-    public ResponseEntity<String> deleteComment(
+    public ResponseEntity<Map<String, String>> deleteComment(
             @PathVariable String commentId,
             Authentication authentication) {
         String username = authentication.getName();
         commentService.deleteComment(commentId, username);
-        return ResponseEntity.ok("댓글이 성공적으로 삭제되었습니다.");
+        return ResponseEntity.ok(Map.of("message", "댓글이 삭제되었습니다."));
     }
 }

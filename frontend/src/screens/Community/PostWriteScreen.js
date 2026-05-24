@@ -12,11 +12,14 @@ import {
 } from 'react-native';
 import { getToken } from '../../utils/storage';
 import { BASE_URL } from '../../api/client';
+import { useUser } from '../../context/UserContext';
+
 
 export default function PostWriteScreen({ navigation, route }) {
   const { category } = route.params;
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const { userInfo } = useUser();
 
   const handleSubmit = async () => {
     if (!title.trim()) {
@@ -46,7 +49,9 @@ export default function PostWriteScreen({ navigation, route }) {
         },
         body: JSON.stringify({
           boardType: category,
-          category: 'UXUI',
+          category: userInfo.mainJob && userInfo.subJob
+            ? `${userInfo.mainJob} > ${userInfo.subJob}`
+            : userInfo.mainJob || 'UXUI',  // ← 'UXUI' 대신 유저 직무
           title: title.trim(),
           content: content.trim(),
           isAnonymous: false

@@ -18,11 +18,11 @@ export function UserProvider({ children }) {
       if (!token) return;
       
       const data = await userApi.getMyInfo();
-      // 백엔드 jobTitle을 mainJob > subJob 형태로 파싱 필요 시 처리
+      const jobParts = (data.jobTitle || '').split(' > ');
       setUserInfo({
         nickname: data.nickname,
-        mainJob: data.jobTitle || '',
-        subJob: '', // 백엔드 구조에 맞춰 조정 필요
+        mainJob: jobParts[0] || '',
+        subJob: jobParts[1] || '',
         career: data.career || '',
       });
     } catch (e) {
@@ -36,15 +36,19 @@ export function UserProvider({ children }) {
 
   const updateUserInfo = async (updated) => {
     try {
+      const jobTitle = updated.mainJob && updated.subJob
+        ? `${updated.mainJob} > ${updated.subJob}`
+        : updated.mainJob || '';
       const data = await userApi.updateMyInfo({
         nickname: updated.nickname,
-        jobTitle: updated.mainJob, // mainJob을 jobTitle로 저장
+        jobTitle,
         career: updated.career,
       });
+      const jobParts = (data.jobTitle || '').split(' > ');
       setUserInfo({
         nickname: data.nickname,
-        mainJob: data.jobTitle || '',
-        subJob: '',
+        mainJob: jobParts[0] || '',
+        subJob: jobParts[1] || '',
         career: data.career || '',
       });
     } catch (e) {

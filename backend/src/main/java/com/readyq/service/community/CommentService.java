@@ -51,9 +51,9 @@ public class CommentService {
     }
 
     // 댓글 조회
-    public List<CommentResponse> getCommentsByBoardId(String boardId) {
+    public List<CommentResponse> getCommentsByBoardId(String boardId, String currentUsername) {
         return commentRepository.findByBoardIdOrderByCreatedAtAsc(boardId).stream()
-                .map(CommentResponse::new)
+                .map(comment -> new CommentResponse(comment, currentUsername))
                 .collect(Collectors.toList());
     }
 

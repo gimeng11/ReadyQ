@@ -33,6 +33,7 @@ public class BoardService {
         Board board = Board.builder()
                 .username(username)
                 .nickname(realNickname)
+                .career(user.getCareer())
                 .boardType(request.getBoardType())
                 .category(request.getCategory())
                 .title(request.getTitle())

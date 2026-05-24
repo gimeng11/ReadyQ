@@ -20,6 +20,7 @@ public class Board {
 
     private String username;
     private String nickname;
+    private String career;
 
     private String boardType; // 면접연습, 꿀팁, 취준
     private String category;
