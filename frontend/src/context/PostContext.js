@@ -62,7 +62,12 @@ export function PostProvider({ children }) {
   const deletePost = async (id) => {
     try {
       await communityApi.deleteBoard(id);
-      setPosts((prev) => prev.filter((p) => p.id !== id));
+      const filterFn = (p) => p.id !== id;
+      setPosts((prev) => prev.filter(filterFn));
+      setMyPosts((prev) => prev.filter(filterFn));
+      setLikedPosts((prev) => prev.filter(filterFn));
+      setScrappedPosts((prev) => prev.filter(filterFn));
+      setCommentedPosts((prev) => prev.filter(filterFn));
     } catch (e) {
       throw e;
     }
@@ -71,7 +76,12 @@ export function PostProvider({ children }) {
   const updatePost = async (id, updated) => {
     try {
       const newPost = await communityApi.updateBoard(id, updated);
-      setPosts((prev) => prev.map((p) => (p.id === id ? newPost : p)));
+      const mapFn = (p) => (p.id === id ? newPost : p);
+      setPosts((prev) => prev.map(mapFn));
+      setMyPosts((prev) => prev.map(mapFn));
+      setLikedPosts((prev) => prev.map(mapFn));
+      setScrappedPosts((prev) => prev.map(mapFn));
+      setCommentedPosts((prev) => prev.map(mapFn));
     } catch (e) {
       throw e;
     }

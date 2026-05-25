@@ -123,18 +123,38 @@ export default function PostDetailScreen({ navigation, route }) {
   // 댓글 더보기 (내 댓글만)
   const handleCommentMorePress = (c) => {
     if (!c.myComment) return;
-    ActionSheetIOS.showActionSheetWithOptions(
-      { options: ['수정', '삭제', '닫기'], destructiveButtonIndex: 1, cancelButtonIndex: 2 },
-      (buttonIndex) => {
-        if (buttonIndex === 0) {
-          setEditingCommentId(c.id);
-          setEditingCommentText(c.content);
-          setTimeout(() => editInputRef.current?.focus(), 100);
-        } else if (buttonIndex === 1) {
-          handleDeleteComment(c.id);
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['수정', '삭제', '닫기'], destructiveButtonIndex: 1, cancelButtonIndex: 2 },
+        (buttonIndex) => {
+          if (buttonIndex === 0) {
+            setEditingCommentId(c.id);
+            setEditingCommentText(c.content);
+            setTimeout(() => editInputRef.current?.focus(), 100);
+          } else if (buttonIndex === 1) {
+            handleDeleteComment(c.id);
+          }
         }
-      }
-    );
+      );
+    } else {
+      Alert.alert('댓글 작업', '수정하시겠습니까 아니면 삭제하시겠습니까?', [
+        {
+          text: '수정',
+          onPress: () => {
+            setEditingCommentId(c.id);
+            setEditingCommentText(c.content);
+            setTimeout(() => editInputRef.current?.focus(), 100);
+          },
+        },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => handleDeleteComment(c.id),
+        },
+        { text: '닫기', style: 'cancel' },
+      ]);
+    }
   };
 
   if (!postDetail) return null;
@@ -143,28 +163,60 @@ export default function PostDetailScreen({ navigation, route }) {
 
   const handleMorePress = () => {
     if (!postDetail.myPost) return;
-    ActionSheetIOS.showActionSheetWithOptions(
-      { options: ['수정', '삭제', '닫기'], destructiveButtonIndex: 1, cancelButtonIndex: 2 },
-      (buttonIndex) => {
-        if (buttonIndex === 0) {
-          setEditTitle(postDetail.title);
-          setEditContent(postDetail.content || postDetail.preview);
-          setEditMode(true);
-        } else if (buttonIndex === 1) {
-          Alert.alert('삭제', '게시글을 삭제하시겠습니까?', [
-            { text: '취소', style: 'cancel' },
-            {
-              text: '삭제',
-              style: 'destructive',
-              onPress: async () => {
-                await deletePost(item.id);
-                navigation.goBack();
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['수정', '삭제', '닫기'], destructiveButtonIndex: 1, cancelButtonIndex: 2 },
+        (buttonIndex) => {
+          if (buttonIndex === 0) {
+            setEditTitle(postDetail.title);
+            setEditContent(postDetail.content || postDetail.preview);
+            setEditMode(true);
+          } else if (buttonIndex === 1) {
+            Alert.alert('삭제', '게시글을 삭제하시겠습니까?', [
+              { text: '취소', style: 'cancel' },
+              {
+                text: '삭제',
+                style: 'destructive',
+                onPress: async () => {
+                  await deletePost(item.id);
+                  navigation.goBack();
+                },
               },
-            },
-          ]);
+            ]);
+          }
         }
-      }
-    );
+      );
+    } else {
+      Alert.alert('게시글 작업', '수정하시겠습니까 아니면 삭제하시겠습니까?', [
+        {
+          text: '수정',
+          onPress: () => {
+            setEditTitle(postDetail.title);
+            setEditContent(postDetail.content || postDetail.preview);
+            setEditMode(true);
+          },
+        },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert('삭제', '정말 삭제하시겠습니까?', [
+              { text: '취소', style: 'cancel' },
+              {
+                text: '삭제',
+                style: 'destructive',
+                onPress: async () => {
+                  await deletePost(item.id);
+                  navigation.goBack();
+                },
+              },
+            ]);
+          },
+        },
+        { text: '취소', style: 'cancel' },
+      ]);
+    }
   };
 
   const handleEditSubmit = async () => {

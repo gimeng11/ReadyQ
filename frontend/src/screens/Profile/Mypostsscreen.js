@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,17 @@ import {
 } from 'react-native';
 import { usePosts } from '../../context/PostContext';
 import styles from './MyPostsStyles';
+import { useIsFocused } from '@react-navigation/native';
 
 export default function MyPostsScreen({ navigation }) {
-  const { posts } = usePosts();
-  const myPosts = posts.filter((p) => p.isMyPost);
+  const { myPosts, loadMyActivities } = usePosts();
+  const isFocused = useIsFocused();
+
+  useEffect(() => {
+    if (isFocused) {
+      loadMyActivities('myPosts');
+    }
+  }, [isFocused]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -29,7 +36,7 @@ export default function MyPostsScreen({ navigation }) {
 
       <FlatList
         data={myPosts}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <Text style={styles.emptyText}>작성한 글이 없어요</Text>
@@ -43,20 +50,20 @@ export default function MyPostsScreen({ navigation }) {
           >
             <View style={styles.postTop}>
               <View style={styles.tagBadge}>
-                <Text style={styles.tagText}>{item.tag}</Text>
+                <Text style={styles.tagText}>{item.tag || item.boardType}</Text>
               </View>
             </View>
             <Text style={styles.postTitle}>{item.title}</Text>
-            <Text style={styles.postPreview}>{item.preview}</Text>
+            <Text style={styles.postPreview}>{item.content || item.preview}</Text>
             <View style={styles.postMeta}>
-              <Text style={styles.metaText}>{item.category}</Text>
+              <Text style={styles.metaText}>{item.category || item.tag}</Text>
               <Text style={styles.metaText}> ・ </Text>
               <Text style={styles.metaText}>{item.date}</Text>
               <Text style={styles.metaText}> ・ </Text>
               <Text style={styles.metaText}>조회 {item.views}</Text>
               <View style={styles.statRow}>
                 <Text style={styles.statText}>♡ {item.likes}</Text>
-                <Text style={styles.statText}>💬 {item.comments}</Text>
+                <Text style={styles.statText}>💬 {item.comments || 0}</Text>
               </View>
             </View>
             <View style={styles.divider} />

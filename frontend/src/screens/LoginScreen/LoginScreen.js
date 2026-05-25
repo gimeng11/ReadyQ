@@ -28,6 +28,7 @@ export default function LoginScreen({ navigation }) {
         const token = parsed.queryParams?.token
         if (token) {
           await saveToken(token)
+          await fetchUserInfo()
           navigation.reset({ index: 0, routes: [{ name: 'Home' }] })
         } else {
           Alert.alert('로그인 실패', 'SNS 로그인 중 오류가 발생했습니다')

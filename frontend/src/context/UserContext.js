@@ -57,8 +57,22 @@ export function UserProvider({ children }) {
     }
   };
 
+  const logout = async () => {
+    try {
+      await AsyncStorage.removeItem('token');
+      setUserInfo({
+        nickname: '로그인 필요',
+        mainJob: '',
+        subJob: '',
+        career: '',
+      });
+    } catch (e) {
+      console.error('로그아웃 실패:', e);
+    }
+  };
+
   return (
-    <UserContext.Provider value={{ userInfo, updateUserInfo, fetchUserInfo }}>
+    <UserContext.Provider value={{ userInfo, updateUserInfo, fetchUserInfo, logout }}>
       {children}
     </UserContext.Provider>
   );
