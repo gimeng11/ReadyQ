@@ -101,7 +101,13 @@ export default function ScrapScreen({ navigation }) {
                     <Text style={styles.metaText}>조회 {item.views || 0}</Text>
                     <View style={styles.statRow}>
                       <Text style={styles.statText}>♡ {item.likes || item.likeCount || 0}</Text>
-                      <Text style={styles.statText}>💬 {item.comments || item.commentCount || 0}</Text>
+                      <View style={styles.statItem}>
+                        <Image
+                          source={require('../../../assets/icons/community.png')}
+                          style={styles.statIcon}
+                        />
+                        <Text style={styles.statText}>{item.comments || item.commentCount || 0}</Text>
+                      </View>
                     </View>
                   </View>
                   <View style={styles.divider} />
@@ -154,6 +160,8 @@ const styles = StyleSheet.create({
   postMeta: { flexDirection: 'row', alignItems: 'center' },
   metaText: { fontSize: 12, color: '#64748B' },
   statRow: { flexDirection: 'row', gap: 8, marginLeft: 'auto' },
+  statItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  statIcon: { width: 12, height: 12, resizeMode: 'contain', tintColor: '#64748B' },
   statText: { fontSize: 12, color: '#64748B' },
   divider: { height: 0.5, backgroundColor: '#E5EAF0', marginTop: 14 },
 });

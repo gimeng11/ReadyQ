@@ -329,7 +329,10 @@ export default function PostDetailScreen({ navigation, route }) {
                 <Text style={[styles.actionCount, liked && { color: '#3281FF' }]}>{likesCount}</Text>
               </TouchableOpacity>
               <View style={styles.actionBtn}>
-                <Text style={styles.actionIcon}>💬</Text>
+                <Image
+                  source={require('../../../assets/icons/community.png')}
+                  style={styles.actionIconImg}
+                />
                 <Text style={styles.actionCount}>{commentsList.length}</Text>
               </View>
             </View>
@@ -463,6 +466,7 @@ const styles = StyleSheet.create({
   },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   actionIcon: { fontSize: 16, color: '#64748B' },
+  actionIconImg: { width: 16, height: 16, resizeMode: 'contain', tintColor: '#64748B' },
   actionCount: { fontSize: 14, color: '#64748B' },
   dividerThick: { height: 8, backgroundColor: '#F8FAFC' },
   commentSection: { padding: 20 },
