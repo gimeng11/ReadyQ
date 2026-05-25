@@ -38,7 +38,8 @@
       "Bash(grep \"\\\\.class$\")",
       "Bash(python3 *)",
       "Bash(python *)",
-      "Bash(dir C:\\\\프로젝트\\\\ReadyQ\\\\frontend *)"
+      "Bash(dir C:\\\\프로젝트\\\\ReadyQ\\\\frontend *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\kimyo\\\\OneDrive\\\\문서\\\\GitHub\\\\ReadyQ\" -Directory)"
     ]
   }
 }

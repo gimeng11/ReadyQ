@@ -147,7 +147,7 @@ public class InterviewService {
         CompletableFuture<String> newQuestionFuture =
                 CompletableFuture.supplyAsync(() ->
                         geminiService.generateNewQuestion(null, targetCompany, targetJob,
-                                prevQuestions, introSummary, currentQuestion));
+                                prevQuestions, introSummary, currentQuestion, iType));
 
         GeminiInterviewService.PeriodAnalysisResult analysis;
         String pregenQuestion;
@@ -258,7 +258,7 @@ public class InterviewService {
                         .orElse(null);
                 nextQuestion = geminiService.generateNewQuestion(
                         null, session.getTargetCompany(), session.getTargetJob(),
-                        previousQuestions, introContext);
+                        previousQuestions, introContext, null, session.getInterviewerType());
                 log.info("NEW_QUESTION fallback 즉시 생성. period={}", currentPeriodNum);
             }
             questionType = QuestionType.NEW;

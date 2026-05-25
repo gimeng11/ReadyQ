@@ -245,7 +245,7 @@ public class GeminiInterviewService {
             return extractLastLine(callGeminiWithVideo(introFileUri, introMimeType, prompt));
         } catch (Exception e) {
             log.warn("자기소개 영상 기반 질문 생성 실패 — 텍스트 기반으로 대체: {}", e.getMessage());
-            return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions);
+            return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, null, null, interviewerType);
         }
     }
 
@@ -346,6 +346,7 @@ public class GeminiInterviewService {
                                                         InterviewerType interviewerType,
                                                         String coverLetter) {
         String interviewerDescription = getInterviewerDescription(interviewerType);
+        String questionStyle = getInterviewerQuestionStyle(interviewerType);
         String coverLetterPart = (coverLetter != null && !coverLetter.isBlank())
                 ? "지원자 자기소개서: " + coverLetter + "\n"
                 : "";
@@ -381,7 +382,7 @@ public class GeminiInterviewService {
                 "[answerClarity - 답변명확성]\n" +
                 "질문 의도 적합성 및 핵심 메시지 전달력을 평가하세요.\n\n" +
 
-                "또한 이 질문에 자연스럽게 이어질 꼬리질문 5개를 생성하세요.\n\n" +
+                "또한 이 질문에 자연스럽게 이어질 꼬리질문 5개를 생성하세요. 꼬리질문 스타일: %s\n\n" +
 
                 "[출력 예시 — 아래 형식을 반드시 준수하세요]\n" +
                 "{\n" +
@@ -395,7 +396,7 @@ public class GeminiInterviewService {
                 "  \"followUpQuestions\": [\"그 경험에서 본인이 맡은 구체적인 역할은 무엇이었나요?\",\"그 과정에서 가장 어려웠던 점은 무엇인가요?\",\"그 결과로 팀에 어떤 영향이 있었나요?\",\"비슷한 상황이 또 생긴다면 어떻게 다르게 접근하시겠나요?\",\"그 경험을 통해 배운 점을 현재 직무에 어떻게 적용하고 있나요?\"]\n" +
                 "}\n\n" +
                 "실제 분석 결과를 위 형식으로 preamble 없이 순수 JSON만 반환 (마크다운 코드블록 없이):",
-                interviewerDescription, question, coverLetterPart);
+                interviewerDescription, question, coverLetterPart, questionStyle);
 
         int maxSchemaAttempts = 2;
         for (int schemaAttempt = 1; schemaAttempt <= maxSchemaAttempts; schemaAttempt++) {
@@ -517,7 +518,7 @@ public class GeminiInterviewService {
                                       String targetCompany,
                                       String targetJob,
                                       List<String> previousQuestions) {
-        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, null, null);
+        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, null, null, null);
     }
 
     public String generateNewQuestion(String coverLetter,
@@ -525,7 +526,7 @@ public class GeminiInterviewService {
                                       String targetJob,
                                       List<String> previousQuestions,
                                       String introContext) {
-        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, introContext, null);
+        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, introContext, null, null);
     }
 
     public String generateNewQuestion(String coverLetter,
@@ -534,6 +535,16 @@ public class GeminiInterviewService {
                                       List<String> previousQuestions,
                                       String introContext,
                                       String currentQuestion) {
+        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, introContext, currentQuestion, null);
+    }
+
+    public String generateNewQuestion(String coverLetter,
+                                      String targetCompany,
+                                      String targetJob,
+                                      List<String> previousQuestions,
+                                      String introContext,
+                                      String currentQuestion,
+                                      InterviewerType interviewerType) {
         String prevQuestionsStr = previousQuestions.isEmpty() ? "없음" : "- " + String.join("\n- ", previousQuestions);
         String tc = (targetCompany != null && !targetCompany.isBlank()) ? targetCompany : "지원 기업";
         String tj = (targetJob != null && !targetJob.isBlank()) ? targetJob : "지원 직무";
@@ -548,16 +559,17 @@ public class GeminiInterviewService {
         if (currentQuestion != null && !currentQuestion.isBlank())
             contextPart += "방금 답변한 질문: " + currentQuestion + "\n";
 
+        String questionStyle = getInterviewerQuestionStyle(interviewerType);
         String prompt = String.format(
-                "%s\n" +
+                "%s\n\n" +
                 "%s 회사의 %s 직무 면접 질문 1개를 생성하세요.\n\n" +
                 "반드시 다음 조건을 모두 충족하세요:\n" +
                 "1. 이번 질문의 핵심 주제: [%s] — 이 주제를 중심으로 질문을 만드세요.\n" +
                 "2. 이미 사용한 질문과 주제가 중복되지 않아야 합니다:\n%s\n" +
                 "3. 방금 답변한 질문과는 완전히 다른 각도의 질문이어야 합니다.\n" +
-                "4. 구체적인 경험이나 사례를 유도하는 행동 기반 질문으로 작성하세요.\n\n" +
+                "4. %s\n\n" +
                 "질문 한 문장만 반환하세요. 번호·설명·인사말 없이 질문 그대로만.",
-                contextPart, tc, tj, chosenTopic, prevQuestionsStr);
+                contextPart, tc, tj, chosenTopic, prevQuestionsStr, questionStyle);
 
         try {
             return callGeminiText(prompt).trim();
@@ -864,6 +876,30 @@ public class GeminiInterviewService {
                 "당신은 균형 잡힌 전문 면접관입니다. " +
                 "지원자의 답변을 과도한 칭찬이나 혹독한 비판 없이 중립적으로 평가하세요. " +
                 "강점과 개선점을 동등한 비중으로 제시하고, 사실에 근거한 객관적인 피드백을 제공해주세요.";
+        };
+    }
+
+    /**
+     * 면접관 유형별 질문 스타일 지시 반환
+     */
+    private String getInterviewerQuestionStyle(InterviewerType type) {
+        if (type == null) type = InterviewerType.DEFAULT;
+        return switch (type) {
+            case FRIENDLY ->
+                "질문은 지원자가 편안하게 답할 수 있도록 열린 형태로 작성하세요. " +
+                "'~한 경험이 있다면 이야기해 주세요', '~에 대해 편하게 소개해 주세요'처럼 " +
+                "부드럽고 따뜻한 어투로 경험을 자연스럽게 이끌어내는 질문을 만드세요.";
+            case PRESSURE ->
+                "질문은 날카롭고 직접적으로 작성하세요. " +
+                "'왜 그렇게 판단했나요?', '그 결정의 근거가 있나요?', '실제로 효과가 있었나요?'처럼 " +
+                "지원자를 압박하고 증명을 요구하는 형태로 작성하세요.";
+            case LOGIC ->
+                "질문은 논리 검증에 초점을 맞춰 작성하세요. " +
+                "'수치나 데이터로 뒷받침할 수 있나요?', '그 결론에 이른 과정을 단계별로 설명해 주세요'처럼 " +
+                "논리 구조와 근거를 파헤치는 질문을 만드세요.";
+            case DEFAULT ->
+                "STAR 기법(상황-과제-행동-결과) 방식의 행동면접 질문을 작성하세요. " +
+                "구체적인 경험과 행동을 이끌어내는 균형 잡힌 질문을 만드세요.";
         };
     }
 
