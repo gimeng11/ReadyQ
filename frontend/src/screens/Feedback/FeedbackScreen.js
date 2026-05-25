@@ -12,6 +12,27 @@ export default function FeedbackScreen({ navigation, route}) {
 
   const [activeTab, setActiveTab] = useState('overall') // 'overall' | 'each'
 
+  const [selectedVideoTab, setSelectedVideoTab] = useState('all') 
+  // 'all' | '1' | '2' | '3' | '4' | '5' 
+
+  // 사용자가 중간에 면접을 종료하면 진행된 교시까지만 피드백이 제공될 예정이므로
+  // 백 연결 후 동적으로 리펙토링 예정임.
+  const videoTabs = [
+    { id: 'all', label: '전체 영상' },
+    { id: '1', label: '1교시' },
+    { id: '2', label: '2교시' },
+    { id: '3', label: '3교시' },
+    { id: '4', label: '4교시' },
+    { id: '5', label: '5교시' },
+  ]
+
+  //영상별 비디오 리스트 (ex: all: ~~~ , 1: ~~~, ...)
+  const videoData = {
+    
+  }
+
+  const currentVideo = videoData[selectedVideoTab]
+
   //분석 결과 데이터(임시), 추후 AI API 연결 필요
   const analysisData = {
     strengths: 
@@ -43,36 +64,81 @@ export default function FeedbackScreen({ navigation, route}) {
   */
   const competencyData = [
     {
+      id: 'logic',
       title: '논리 구조력',
       subtitle: '근거가 부족해요.',
       score: 90,
       icon: require('../../../assets/icons/logic.png'),
     },
     {
+      id: 'speed',
       title: '속도 조절력',
       subtitle: '말이 빨라요.',
       score: 88,
       icon: require('../../../assets/icons/time.png'),
     },
     {
+      id: 'fluency',
       title: '발화 유창성',
       subtitle: '추임새가 잦아요.',
       score: 66,
       icon: require('../../../assets/icons/mouth.png'),
     },
     {
+      id: 'nonverbal',
       title: '비언어 표현력',
       subtitle: '표정이 어색해요.',
       score: 43,
       icon: require('../../../assets/icons/person.png'),
     },
     {
+      id: 'persuasion',
       title: '전달 설득력',
       subtitle: '목소리 톤이 너무 일정해요.',
       score: 0,
       icon: require('../../../assets/icons/mic.png'),
     },
   ]
+
+  // 전체 영상 질문 리스트 (임시 데이터)
+  const questionData = [
+    {
+      id: 1,
+      tabId: '1',
+      question: '지원한 직무에 관심을 가지게 된 계기는 무엇인가요?',
+      transcript: '안녕하세요, 사용자 중심의 경험을 설계하는 UX/UI 디자이너 레디큐입니다. 데이터와 사용자 행동을 기반으로 문제를 정의하고, 직관적이고 효율적인 인터페이스를 만드는 데 집중하고 있습니다.',
+    },
+    {
+      id: 2,
+      tabId: '2',
+      question: '프로젝트에서 어려웠던 경험을 설명해주세요.',
+      transcript: '프로젝트 진행 당시 ...',
+    },
+    {
+      id: 3,
+      tabId: '3',
+      question: '협업 과정에서 갈등을 해결한 경험이 있나요?',
+      transcript: '팀 프로젝트를 진행하며 ...',
+    },
+    {
+      id: 4,
+      tabId: '4',
+      question: '본인의 강점은 무엇이라고 생각하나요?',
+      transcript: '저의 가장 큰 강점은 ...',
+    },
+    {
+      id: 5,
+      tabId: '5',
+      question: '입사 후 이루고 싶은 목표가 있나요?',
+      transcript: '입사 후에는 ...',
+    },
+  ]
+
+  const selectedQuestionData = questionData.find(
+    item => item.tabId === selectedVideoTab
+  )
+
+  const [selectedQuestion, setSelectedQuestion] = useState(null)
 
   const getGradeInfo = (score) => {
     if (score >= 90) {
@@ -181,7 +247,10 @@ export default function FeedbackScreen({ navigation, route}) {
               </View>
 
               {/* 이전 면접 보기 버튼*/}
-              <TouchableOpacity style={styles.historyButton}>
+              <TouchableOpacity 
+                style={styles.historyButton}
+                onPress={() => navigation.navigate('FeedbackComparison')}
+              >
                 <CustomText weight="bold" style={styles.historyText}>
                   이전 면접 비교 보기
                 </CustomText>
@@ -243,7 +312,7 @@ export default function FeedbackScreen({ navigation, route}) {
                     activeOpacity={0.7}
                     onPress={() =>
                       navigation.navigate('FeedbackDetail', {
-                        competency: item,
+                        competencyId: item.id,
                       })
                     }
                   >
@@ -311,7 +380,130 @@ export default function FeedbackScreen({ navigation, route}) {
 
         {activeTab === 'each' && (
           <View>
-            <CustomText>영상별 피드백 내용</CustomText>
+
+            {/* 상단 가로 탭 */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.videoTabContainer}
+            >
+              {videoTabs.map(tab => {
+                const isActive = selectedVideoTab === tab.id
+
+                return (
+                  <TouchableOpacity
+                    key={tab.id}
+                    style={[
+                      styles.videoTabButton,
+                      isActive && styles.activeVideoTabButton
+                    ]}
+                    onPress={() => setSelectedVideoTab(tab.id)}
+                  >
+                    <CustomText
+                      weight="bold"
+                      style={[
+                        styles.videoTabText,
+                        isActive && styles.activeVideoTabText
+                      ]}
+                    >
+                      {tab.label}
+                    </CustomText>
+                  </TouchableOpacity>
+                )
+              })}
+            </ScrollView>
+
+            {/* 탭별 화면 */}
+            <View style={styles.videoContentContainer}>
+              
+              {/* 영상 영역 */}
+              <View style={styles.videoBox}>
+                <CustomText style={styles.videoPlaceholder}> 
+                  영상 들어갈 영역   {/* 영상 실제로 들어갈 때는  videoPlaceholder 삭제 예정 */}
+                </CustomText>
+
+                {/* 영상 실제로 들어갈 때 videoPlaceholder 삭제하고 사용 */}
+                {/* <Video
+                  source={{ uri: currentVideo }}
+                  style={styles.video}
+                  useNativeControls
+                  resizeMode="cover"
+                /> */}
+              </View>
+
+
+              {selectedVideoTab === 'all' && (
+                <View>
+
+                  {/* 질문 리스트 */}
+                  <CustomText weight="bold" style={styles.questionTitle}>
+                    질문 리스트
+                  </CustomText>
+
+                  <View style={styles.questionContainer}>
+                    {questionData.map(item => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.questionItem}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          setSelectedQuestion(item)
+                          setSelectedVideoTab(item.tabId)
+                        }}
+                        
+                      >
+                        <View style={styles.questionLeft}>
+                          
+                          <CustomText weight="bold" style={styles.questionNumber}>
+                            Q{item.id}
+                          </CustomText>
+
+                          <CustomText style={styles.questionText}>
+                            {item.question}
+                          </CustomText>
+
+                        </View>
+
+                        <Image
+                          source={require('../../../assets/icons/arrow2.png')}
+                          style={styles.questionArrow}
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {selectedVideoTab !== 'all' && selectedQuestionData && (
+                <View style={styles.detailContainer}>
+
+                  {/* 질문 */}
+                  <View style={styles.detailQuestionRow}>
+                    <CustomText weight="bold" style={styles.detailQuestionNumber}>
+                      Q{selectedQuestionData.id}
+                    </CustomText>
+
+                    <CustomText style={styles.detailQuestionText}>
+                      {selectedQuestionData.question}
+                    </CustomText>
+                  </View>
+
+                  {/* 답변 전문 */}
+                  <View style={styles.transcriptContainer}>
+                    <CustomText weight="bold" style={styles.transcriptTitle}>
+                      내 답변
+                    </CustomText>
+
+                    <CustomText style={styles.transcriptText}>
+                      {selectedQuestionData.transcript}
+                    </CustomText>
+                  </View>
+
+                </View>
+              )}
+
+            </View>
+
           </View>
         )}
       </ScrollView>

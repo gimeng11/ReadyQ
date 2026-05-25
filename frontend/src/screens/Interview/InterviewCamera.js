@@ -44,6 +44,18 @@ export default function InterviewCamera({ navigation, route }) {
   // exit 버튼 상태
   const [exitModalVisible, setExitModalVisible] = useState(false)
 
+  // 면접 종료 타입
+  const [exitType, setExitType] = useState(null) 
+  // 'normal' | 'forced'
+  // normal: question → loading → break → ... → loading → end
+  // forced: exit modal → loading → end → InterviewEnd
+
+  // exit 버튼 눌렀을 때 멈춤 상태 (Timer 제어)
+  const [isPaused, setIsPaused] = useState(false)
+
+  // 녹화 여부 (exit 눌렀을 때 녹화 중지되도록)
+  const [isRecording, setIsRecording] = useState(false)
+
   // 로딩 단계
   const [loadingStep, setLoadingStep] = useState(0)
 
@@ -90,7 +102,7 @@ export default function InterviewCamera({ navigation, route }) {
 
   // 준비 시간 + 답변 시간
   useEffect(() => {
-    if (phase !== 'question') return
+    if (phase !== 'question' || isPaused) return
 
     const timer = setInterval(() => {
 
@@ -114,7 +126,7 @@ export default function InterviewCamera({ navigation, route }) {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [phase, readyTime])
+  }, [phase, readyTime, isPaused])
 
   // 질문 호출
   useEffect(() => {
@@ -182,20 +194,26 @@ export default function InterviewCamera({ navigation, route }) {
     const timer2 = setTimeout(() => {
       setLoadingStep(2)
 
-      if (round >= 5) {
-        setTimeout(() => {
-          setPhase('end')
-        }, 2000)
-      } else {
-        setPhase('break')
-      }
+      setTimeout(() => {
+        if (exitType === 'forced') {
+          setPhase('end') // 중도 종료
+        } else {
+          // 정상 흐름
+          if (round >= 5) {
+            setPhase('end')
+          } else {
+            setPhase('break') 
+          }
+        }
+      }, 1500)
+
     }, 3000)
 
     return () => {
       clearTimeout(timer1)
       clearTimeout(timer2)
     }
-  }, [phase])
+  }, [phase, exitType, round])
 
   // 종료
   useEffect(() => {
@@ -273,7 +291,7 @@ export default function InterviewCamera({ navigation, route }) {
             </CustomText>
 
             <CustomText weight="bold" style={styles.timeguideText}>
-              {readyTime > 0 ? '준비시간 : ' : '딥뱐시간 : '}
+              {readyTime > 0 ? '준비시간 : ' : '답변시간 : '}
             </CustomText>
 
 
@@ -320,9 +338,9 @@ export default function InterviewCamera({ navigation, route }) {
           <TouchableOpacity
             style={[
               styles.circleButton,
-              phase === 'guide' && { opacity: 0.3 }
+              (phase === 'guide' || readyTime > 0) && { opacity: 0.3 }
             ]}
-            disabled={phase === 'guide'}
+            disabled={phase === 'guide'|| readyTime > 0} 
             onPress={handleNext}
           >
             <Image
@@ -337,7 +355,11 @@ export default function InterviewCamera({ navigation, route }) {
               phase === 'guide' && { opacity: 0.3 }
             ]}
             disabled={phase === 'guide'}
-            onPress={() => setExitModalVisible(true)}
+            onPress={() => {
+              setExitModalVisible(true)
+              setIsPaused(true)
+              setExitType('forced')
+            }}
           >
             <Image
               source={require('../../../assets/icons/exit.png')}
@@ -356,8 +378,8 @@ export default function InterviewCamera({ navigation, route }) {
             </CustomText>
 
             <CustomText style={styles.modalDesc}>
-              면접을 그만두면 지금까지{"\n"}
-              녹화한 영상들이 없어져요.
+              면접을 그만두면 진행한 부분만 피드백에 반영돼요.{"\n"}
+              답변을 중단할 시 피드백의 정확도가 떨어질 수 있어요.
             </CustomText>
 
             <View style={styles.modalButtonContainer}>
@@ -365,7 +387,10 @@ export default function InterviewCamera({ navigation, route }) {
                 style={[styles.modalButton, styles.modalExit]}
                 onPress={() => {
                   setExitModalVisible(false)
-                  navigation.navigate('Home')
+                  setIsPaused(false)
+
+                  setExitType('forced')
+                  setPhase('loading')
                 }}
               >
                 <CustomText weight="bold" style={styles.modalExitText}>
@@ -375,7 +400,10 @@ export default function InterviewCamera({ navigation, route }) {
 
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalCancel]}
-                onPress={() => setExitModalVisible(false)}
+                onPress={() => {
+                  setExitModalVisible(false) 
+                  setIsPaused(false)
+                }} 
               >
                 <CustomText weight="bold" style={styles.modalCancelText}>
                   취소

@@ -168,4 +168,121 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     color: '#3281FF',
   },
+  videoTabContainer: {
+    paddingBottom: 10,
+  },
+  videoTabButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: '#F1F3F5',
+    marginRight: 10,
+  },
+  activeVideoTabButton: {
+    backgroundColor: '#3281FF',
+  },
+  videoTabText: {
+    fontSize: 13,
+    color: '#666',
+  },
+  activeVideoTabText: {
+    color: '#fff',
+  },
+  videoContentContainer: {
+    marginTop: 20,
+  },
+  videoBox: {
+    width: '70%',
+    aspectRatio: 9 / 16,
+    backgroundColor: '#D9D9D9',
+    borderRadius: 20,
+    alignSelf: 'center',
+    marginBottom: 40,
+  },
+  
+  //영상 연결 후 삭제 예정
+  videoPlaceholder: {
+    color: '#666',
+    fontSize: 14,
+  },
+  /*
+  영상 연결되면 사용 
+  video: {
+    width: '100%',
+    height: '100%',
+  },
+  */
+  questionTitle: {
+    fontSize: 18,
+    marginBottom: 16,
+    color: '#111',
+  },
+  questionContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+  },
+  questionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 18,
+  },
+  questionLeft: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    flex: 1,
+    marginRight: 10,
+  },
+  questionNumber: {
+    fontSize: 15,
+    color: '#3281FF',
+    marginRight: 12,
+  },
+  questionText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#111',
+    lineHeight: 22,
+  },
+  questionArrow: {
+    width: 18,
+    height: 18,
+    tintColor: '#999',
+  },
+  detailContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+  },
+  detailQuestionRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+  },
+  detailQuestionNumber: {
+    fontSize: 16,
+    color: '#3281FF',
+    marginRight: 12,
+  },
+  detailQuestionText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#111',
+    lineHeight: 24,
+  },
+  transcriptContainer: {
+    paddingTop: 20,
+  },
+  transcriptTitle: {
+    fontSize: 15,
+    color: '#3281FF',
+    marginBottom: 12,
+  },
+  transcriptText: {
+    fontSize: 15,
+    color: '#222',
+    lineHeight: 24,
+  },
 })

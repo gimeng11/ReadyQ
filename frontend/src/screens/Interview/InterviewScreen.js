@@ -1,4 +1,4 @@
-import { View, TextInput, ScrollView, TouchableOpacity } from 'react-native';
+import { View, TextInput, TouchableOpacity } from 'react-native';
 import { useState } from 'react'
 import { styles } from './InterviewStyles'
 import CustomText from '../../components/CustomText'

@@ -15,7 +15,7 @@ export default function BottomTab({ navigation, routeName }) {
     },
     {
       name: 'Archive',
-      label: '일정관리',
+      label: '아카이브',
       icon: require('../../assets/icons/archive.png'),
     },
     {

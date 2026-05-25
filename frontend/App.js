@@ -24,6 +24,7 @@ import ProfileScreen from './src/screens/Profile/ProfileScreen'
 import ScheduleScreen from './src/screens/Schedule/ScheduleScreen'
 import FeedbackScreen from './src/screens/Feedback/FeedbackScreen'
 import FeedbackDetail from './src/screens/Feedback/FeedbackDetail'
+import FeedbackComparison from './src/screens/Feedback/FeedbackComparison'
 
 const Stack = createNativeStackNavigator()
 
@@ -63,6 +64,7 @@ export default function App() {
         <Stack.Screen name="Schedule" component={ScheduleScreen} />
         <Stack.Screen name="Feedback" component={FeedbackScreen} />
         <Stack.Screen name="FeedbackDetail" component={FeedbackDetail} />
+        <Stack.Screen name="FeedbackComparison" component={FeedbackComparison} />
       </Stack.Navigator>
     </NavigationContainer>
   )
