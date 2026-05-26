@@ -55,7 +55,7 @@ export default function FeedbackScreen({ navigation, route}) {
 
 
   const size = 320
-  const radius = 100
+  const radius = 90
 
   const svgWidth = size + 80
   const svgHeight = size + 60

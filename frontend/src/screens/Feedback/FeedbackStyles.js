@@ -242,14 +242,14 @@ export const styles = StyleSheet.create({
   },
   questionText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     color: '#111',
     lineHeight: 22,
   },
   questionArrow: {
-    width: 18,
-    height: 18,
-    tintColor: '#999',
+    width: 14,
+    height: 14,
+    tintColor: '#9EACBF',
   },
   detailContainer: {
     backgroundColor: '#fff',
@@ -259,21 +259,20 @@ export const styles = StyleSheet.create({
   detailQuestionRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 24,
+    marginBottom: 12,
   },
   detailQuestionNumber: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#3281FF',
     marginRight: 12,
   },
   detailQuestionText: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: '#111',
     lineHeight: 24,
   },
   transcriptContainer: {
-    paddingTop: 20,
   },
   transcriptTitle: {
     fontSize: 15,

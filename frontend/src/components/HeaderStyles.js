@@ -7,7 +7,6 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 30,
-
   },
 
   leftSection: {

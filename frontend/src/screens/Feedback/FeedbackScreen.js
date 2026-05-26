@@ -140,6 +140,9 @@ export default function FeedbackScreen({ navigation, route}) {
 
   const [selectedQuestion, setSelectedQuestion] = useState(null)
 
+  // 추가된 state (기존 selectedQuestion 대체 느낌으로 사용)
+  const [openQuestionId, setOpenQuestionId] = useState(null)
+
   const getGradeInfo = (score) => {
     if (score >= 90) {
       return { label: '우수', color: '#3281FF' } // 파랑
@@ -449,35 +452,57 @@ export default function FeedbackScreen({ navigation, route}) {
                     </CustomText>
 
                     <View style={styles.questionContainer}>
-                      {questionData.map(item => (
-                        <TouchableOpacity
-                          key={item.id}
-                          style={styles.questionItem}
-                          activeOpacity={0.7}
-                          onPress={() => {
-                            setSelectedQuestion(item)
-                            setSelectedVideoTab(item.tabId)
-                          }}
-                          
-                        >
-                          <View style={styles.questionLeft}>
-                            
-                            <CustomText weight="bold" style={styles.questionNumber}>
-                              Q{item.id}
-                            </CustomText>
+                      {questionData.map(item => {
+                        const isOpen = openQuestionId === item.id
 
-                            <CustomText style={styles.questionText}>
-                              {item.question}
-                            </CustomText>
+                        return (
+                          <View key={item.id}>
+                            <TouchableOpacity
+                              style={styles.questionItem}
+                              activeOpacity={0.7}
+                              onPress={() => {
+                                setOpenQuestionId(prev =>
+                                  prev === item.id ? null : item.id
+                                )
+                              }}
+                            >
+                              <View style={styles.questionLeft}>
+                                <CustomText weight="bold" style={styles.questionNumber}>
+                                  Q{item.id}
+                                </CustomText>
 
+                                <CustomText style={styles.questionText}>
+                                  {item.question}
+                                </CustomText>
+                              </View>
+
+                              <Image
+                                source={
+                                  isOpen
+                                    ? require('../../../assets/icons/toggle2.png')
+                                    : require('../../../assets/icons/toggle1.png')
+                                }
+                                style={styles.questionArrow}
+                              />
+                            </TouchableOpacity>
+
+                            {isOpen && (
+                              <View style={styles.detailContainer}>
+
+                                <View style={styles.transcriptContainer}>
+                                  <CustomText weight="bold" style={styles.transcriptTitle}>
+                                    내 답변
+                                  </CustomText>
+
+                                  <CustomText style={styles.transcriptText}>
+                                    {item.transcript}
+                                  </CustomText>
+                                </View>
+                              </View>
+                            )}
                           </View>
-
-                          <Image
-                            source={require('../../../assets/icons/arrow2.png')}
-                            style={styles.questionArrow}
-                          />
-                        </TouchableOpacity>
-                      ))}
+                        )
+                      })}
                     </View>
                   </View>
                 )}
