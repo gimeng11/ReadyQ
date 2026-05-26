@@ -169,7 +169,7 @@ export const styles = StyleSheet.create({
     color: '#3281FF',
   },
   videoTabContainer: {
-    paddingBottom: 10,
+    padding: 20,
   },
   videoTabButton: {
     paddingHorizontal: 18,
@@ -189,7 +189,7 @@ export const styles = StyleSheet.create({
     color: '#fff',
   },
   videoContentContainer: {
-    marginTop: 20,
+    flexGrow: 1,
   },
   videoBox: {
     width: '70%',

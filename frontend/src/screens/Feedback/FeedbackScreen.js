@@ -18,7 +18,7 @@ export default function FeedbackScreen({ navigation, route}) {
   // 사용자가 중간에 면접을 종료하면 진행된 교시까지만 피드백이 제공될 예정이므로
   // 백 연결 후 동적으로 리펙토링 예정임.
   const videoTabs = [
-    { id: 'all', label: '전체 영상' },
+    { id: 'all', label: '전체' },
     { id: '1', label: '1교시' },
     { id: '2', label: '2교시' },
     { id: '3', label: '3교시' },
@@ -26,7 +26,7 @@ export default function FeedbackScreen({ navigation, route}) {
     { id: '5', label: '5교시' },
   ]
 
-  //영상별 비디오 리스트 (ex: all: ~~~ , 1: ~~~, ...)
+  //영상별 비디오 리스트 (ex: 1: ~~~, 2: ~~~, ...)
   const videoData = {
     
   }
@@ -105,7 +105,7 @@ export default function FeedbackScreen({ navigation, route}) {
     {
       id: 1,
       tabId: '1',
-      question: '지원한 직무에 관심을 가지게 된 계기는 무엇인가요?',
+      question: '간단한 자기소개 부탁드립니다.',
       transcript: '안녕하세요, 사용자 중심의 경험을 설계하는 UX/UI 디자이너 레디큐입니다. 데이터와 사용자 행동을 기반으로 문제를 정의하고, 직관적이고 효율적인 인터페이스를 만드는 데 집중하고 있습니다.',
     },
     {
@@ -377,12 +377,13 @@ export default function FeedbackScreen({ navigation, route}) {
 
           </View>
         )}
+      </ScrollView>
 
         {activeTab === 'each' && (
           <View>
-
             {/* 상단 가로 탭 */}
             <ScrollView
+              style={{ flexGrow: 0 }}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.videoTabContainer}
@@ -413,100 +414,108 @@ export default function FeedbackScreen({ navigation, route}) {
               })}
             </ScrollView>
 
-            {/* 탭별 화면 */}
-            <View style={styles.videoContentContainer}>
-              
-              {/* 영상 영역 */}
-              <View style={styles.videoBox}>
-                <CustomText style={styles.videoPlaceholder}> 
-                  영상 들어갈 영역   {/* 영상 실제로 들어갈 때는  videoPlaceholder 삭제 예정 */}
-                </CustomText>
+            <ScrollView 
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 20, paddingBottom: 150 }}
+            > 
 
-                {/* 영상 실제로 들어갈 때 videoPlaceholder 삭제하고 사용 */}
-                {/* <Video
-                  source={{ uri: currentVideo }}
-                  style={styles.video}
-                  useNativeControls
-                  resizeMode="cover"
-                /> */}
-              </View>
-
-
-              {selectedVideoTab === 'all' && (
-                <View>
-
-                  {/* 질문 리스트 */}
-                  <CustomText weight="bold" style={styles.questionTitle}>
-                    질문 리스트
+              {/* 탭별 화면 */}
+              <View style={styles.videoContentContainer}>
+                
+                {/* 영상 영역 */}
+                {selectedVideoTab !== 'all' && (
+                <View style={styles.videoBox}>
+                  <CustomText style={styles.videoPlaceholder}> 
+                    영상 들어갈 영역   {/* 영상 실제로 들어갈 때는  videoPlaceholder 삭제 예정 */}
                   </CustomText>
 
-                  <View style={styles.questionContainer}>
-                    {questionData.map(item => (
-                      <TouchableOpacity
-                        key={item.id}
-                        style={styles.questionItem}
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          setSelectedQuestion(item)
-                          setSelectedVideoTab(item.tabId)
-                        }}
-                        
-                      >
-                        <View style={styles.questionLeft}>
+                  {/* 영상 실제로 들어갈 때 videoPlaceholder 삭제하고 사용 */}
+                  {/* <Video
+                    source={{ uri: currentVideo }}
+                    style={styles.video}
+                    useNativeControls
+                    resizeMode="cover"
+                  /> */}
+                </View>
+                )}
+
+
+                {selectedVideoTab === 'all' && (
+                  <View>
+
+                    {/* 질문 리스트 */}
+                    <CustomText weight="bold" style={styles.questionTitle}>
+                      질문 리스트
+                    </CustomText>
+
+                    <View style={styles.questionContainer}>
+                      {questionData.map(item => (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={styles.questionItem}
+                          activeOpacity={0.7}
+                          onPress={() => {
+                            setSelectedQuestion(item)
+                            setSelectedVideoTab(item.tabId)
+                          }}
                           
-                          <CustomText weight="bold" style={styles.questionNumber}>
-                            Q{item.id}
-                          </CustomText>
+                        >
+                          <View style={styles.questionLeft}>
+                            
+                            <CustomText weight="bold" style={styles.questionNumber}>
+                              Q{item.id}
+                            </CustomText>
 
-                          <CustomText style={styles.questionText}>
-                            {item.question}
-                          </CustomText>
+                            <CustomText style={styles.questionText}>
+                              {item.question}
+                            </CustomText>
 
-                        </View>
+                          </View>
 
-                        <Image
-                          source={require('../../../assets/icons/arrow2.png')}
-                          style={styles.questionArrow}
-                        />
-                      </TouchableOpacity>
-                    ))}
+                          <Image
+                            source={require('../../../assets/icons/arrow2.png')}
+                            style={styles.questionArrow}
+                          />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
-                </View>
-              )}
+                )}
 
-              {selectedVideoTab !== 'all' && selectedQuestionData && (
-                <View style={styles.detailContainer}>
+                {selectedVideoTab !== 'all' && selectedQuestionData && (
+                  <View style={styles.detailContainer}>
 
-                  {/* 질문 */}
-                  <View style={styles.detailQuestionRow}>
-                    <CustomText weight="bold" style={styles.detailQuestionNumber}>
-                      Q{selectedQuestionData.id}
-                    </CustomText>
+                    {/* 질문 */}
+                    <View style={styles.detailQuestionRow}>
+                      <CustomText weight="bold" style={styles.detailQuestionNumber}>
+                        Q{selectedQuestionData.id}
+                      </CustomText>
 
-                    <CustomText style={styles.detailQuestionText}>
-                      {selectedQuestionData.question}
-                    </CustomText>
+                      <CustomText style={styles.detailQuestionText}>
+                        {selectedQuestionData.question}
+                      </CustomText>
+                    </View>
+
+                    {/* 답변 전문 */}
+                    <View style={styles.transcriptContainer}>
+                      <CustomText weight="bold" style={styles.transcriptTitle}>
+                        내 답변
+                      </CustomText>
+
+                      <CustomText style={styles.transcriptText}>
+                        {selectedQuestionData.transcript}
+                      </CustomText>
+                    </View>
+
                   </View>
+                )}
 
-                  {/* 답변 전문 */}
-                  <View style={styles.transcriptContainer}>
-                    <CustomText weight="bold" style={styles.transcriptTitle}>
-                      내 답변
-                    </CustomText>
+              </View>
 
-                    <CustomText style={styles.transcriptText}>
-                      {selectedQuestionData.transcript}
-                    </CustomText>
-                  </View>
-
-                </View>
-              )}
-
-            </View>
+            </ScrollView>
 
           </View>
         )}
-      </ScrollView>
         
     </View>
 
