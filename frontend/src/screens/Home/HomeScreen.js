@@ -1,4 +1,4 @@
-import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView } from 'react-native';
 import styles from './HomeStyles';
 import BottomTab from '../../components/BottomTab';
 import CustomButton from '../../components/CustomButton';
@@ -9,7 +9,10 @@ export default function HomeScreen({ navigation }) {
         
         <View style={styles.header}>
   </View>
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <Image
                 source={require('../../../assets/icons/Logo.png')}
                 style={styles.logo}
@@ -48,9 +51,9 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.cardDesc}>
             AI와 함께 자소서를 첨삭하고 다듬을 수 있어요.
         </Text>
-    </TouchableOpacity>
+        </TouchableOpacity>
 
-      </View>
+      </ScrollView>
 
       <BottomTab navigation={navigation} routeName="Home" />
 

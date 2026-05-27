@@ -6,133 +6,112 @@ export const styles = StyleSheet.create({
     backgroundColor: '#F8F9FB',
     paddingTop: 100,
   },
-  scrollContent: {
-    padding: 20,
+
+  scrollContainer: {
+    paddingHorizontal: 20,
     paddingBottom: 40,
+    width: '100%',
+    alignItems: 'center',
   },
-  topCard: {
+
+  titleText: {
+    width: '100%',
+    fontSize: 18,
+    color: '#111',
+  },
+
+  divider: {
+    width: '100%',
+    height: 1,
+    backgroundColor: '#D9E1EB',
+    marginTop: 12,
+    marginBottom: 20,
+  },
+
+  // 카드
+  graphCard: {
+    width: '100%',
     backgroundColor: '#fff',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 20,
     marginBottom: 16,
+
+    // ios shadow
     shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
     shadowOpacity: 0.05,
     shadowRadius: 8,
+
+    // android shadow
     elevation: 2,
   },
+
+  // 상단
   topRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
   },
-  iconBox: {
-    width: 56,
-    height: 56,
-    backgroundColor: '#E6F0FF',
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
+
+  graphTitle: {
+    fontSize: 17,
+    color: '#111',
   },
-  icon: {
-    width: 28,
-    height: 28,
-    tintColor: '#3281FF',
-  },
-  topTextBox: {
-    flex: 1,
-  },
-  competencyTitle: {
-    fontSize: 20,
-    color: '#000',
-    marginBottom: 6,
-  },
+
   scoreRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
-  scoreText: {
-    fontSize: 22,
+
+  graphScore: {
+    fontSize: 16,
+    marginRight: 10,
   },
+
   gradeBadge: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  gradeText: {
-    fontSize: 13,
-  },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: 8,
-    borderRadius: 4,
-  },
-  descCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  descTitle: {
-    fontSize: 16,
-    color: '#000',
-    marginBottom: 10,
-  },
-  descText: {
-    fontSize: 14,
-    color: '#64748B',
-    lineHeight: 22,
-  },
-  periodCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  periodTitle: {
-    fontSize: 16,
-    color: '#000',
-    marginBottom: 14,
-  },
-  periodRow: {
-    flexDirection: 'row',
+    paddingVertical: 5,
+    borderRadius: 999,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
   },
-  periodLabel: {
-    fontSize: 14,
-    color: '#64748B',
-    width: 42,
+
+  gradeText: {
+    fontSize: 12,
   },
-  periodBarBg: {
-    flex: 1,
-    height: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
+
+  // 그래프
+  progressBackground: {
+    width: '100%',
+    height: 10,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 999,
     overflow: 'hidden',
-    marginHorizontal: 10,
+    marginTop: 20,
   },
-  periodBarFill: {
-    height: 8,
-    borderRadius: 4,
+
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
   },
-  periodScore: {
+
+  // 피드백
+  feedbackSection: {
+    marginTop: 22,
+  },
+
+  feedbackTitle: {
     fontSize: 14,
-    width: 40,
-    textAlign: 'right',
+    marginBottom: 8,
+    color: '#111',
+  },
+
+  feedbackText: {
+    fontSize: 13,
+    lineHeight: 22,
+    color: '#666',
   },
 })

@@ -145,6 +145,7 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#666',
     marginBottom: 20,
+    lineHeight: 22,
   },
   modalButtonContainer: {
     flexDirection: 'column',

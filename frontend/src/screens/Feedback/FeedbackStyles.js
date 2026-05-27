@@ -168,84 +168,120 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     color: '#3281FF',
   },
-  periodFeedbackCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
+  videoTabContainer: {
+    padding: 20,
   },
-  periodFeedbackHeader: {
+  videoTabButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: '#F1F3F5',
+    marginRight: 10,
+  },
+  activeVideoTabButton: {
+    backgroundColor: '#3281FF',
+  },
+  videoTabText: {
+    fontSize: 13,
+    color: '#666',
+  },
+  activeVideoTabText: {
+    color: '#fff',
+  },
+  videoContentContainer: {
+    flexGrow: 1,
+  },
+  videoBox: {
+    width: '70%',
+    aspectRatio: 9 / 16,
+    backgroundColor: '#D9D9D9',
+    borderRadius: 20,
+    alignSelf: 'center',
+    marginBottom: 40,
+  },
+  
+  //영상 연결 후 삭제 예정
+  videoPlaceholder: {
+    color: '#666',
+    fontSize: 14,
+  },
+  /*
+  영상 연결되면 사용 
+  video: {
+    width: '100%',
+    height: '100%',
+  },
+  */
+  questionTitle: {
+    fontSize: 18,
+    marginBottom: 16,
+    color: '#111',
+  },
+  questionContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+  },
+  questionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    paddingVertical: 18,
   },
-  periodFeedbackNum: {
-    fontSize: 16,
-    color: '#000',
-  },
-  periodFeedbackGrade: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  periodFeedbackGradeText: {
-    fontSize: 13,
-  },
-  periodFeedbackText: {
-    fontSize: 14,
-    color: '#64748B',
-    lineHeight: 20,
-  },
-  periodFeedbackDivider: {
-    height: 1,
-    backgroundColor: '#f0f0f0',
-    marginVertical: 10,
-  },
-  periodFeedbackTipsTitle: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 6,
-  },
-  periodFeedbackTip: {
-    fontSize: 13,
-    color: '#64748B',
-    lineHeight: 20,
-    paddingLeft: 4,
-  },
-  coachingCard: {
-    backgroundColor: '#EEF4FF',
-    borderRadius: 14,
-    padding: 18,
-    marginVertical: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3281FF',
-  },
-  coachingHeader: {
+  questionLeft: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-    gap: 10,
+    alignItems: 'flex-start',
+    flex: 1,
+    marginRight: 10,
   },
-  coachingBadge: {
-    fontSize: 13,
+  questionNumber: {
+    fontSize: 15,
     color: '#3281FF',
-    backgroundColor: '#D6E8FF',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 20,
+    marginRight: 12,
   },
-  coachingWeakLabel: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  coachingMsg: {
-    fontSize: 14,
-    color: '#1E3A5F',
+  questionText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#111',
     lineHeight: 22,
+  },
+  questionArrow: {
+    width: 14,
+    height: 14,
+    tintColor: '#9EACBF',
+  },
+  detailContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+  },
+  detailQuestionRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  detailQuestionNumber: {
+    fontSize: 15,
+    color: '#3281FF',
+    marginRight: 12,
+  },
+  detailQuestionText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#111',
+    lineHeight: 24,
+  },
+  transcriptContainer: {
+  },
+  transcriptTitle: {
+    fontSize: 15,
+    color: '#3281FF',
+    marginBottom: 12,
+  },
+  transcriptText: {
+    fontSize: 15,
+    color: '#222',
+    lineHeight: 24,
   },
 })

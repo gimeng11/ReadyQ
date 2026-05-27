@@ -4,20 +4,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F4F6FA',
-    paddingTop: 40,
+    paddingTop: 20,
   },
 
   header: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    height: 60, 
+    height: 40, 
     paddingHorizontal: 20,
-  },
-
-  archiveIcon: {
-    width: 24,
-    height: 24,
   },
 
   content: {
@@ -31,8 +26,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     alignSelf: 'center',
-    marginBottom: 20, // ⭐ 아래 여백만
-    // ❌ marginTop: 160 제거
+    marginBottom: 20, 
   },
 
   title: {
