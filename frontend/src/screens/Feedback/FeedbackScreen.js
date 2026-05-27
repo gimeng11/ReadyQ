@@ -1,162 +1,133 @@
-import { View, Image, TextInput, ScrollView, TouchableOpacity, Keyboard, TouchableWithoutFeedback } from 'react-native';
-import { useState } from 'react'
+import { View, Image, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { useState, useEffect } from 'react'
 import { styles } from './FeedbackStyles'
 import CustomText from '../../components/CustomText'
-import CustomButton from '../../components/CustomButton'
 import Header from '../../components/Header'
 import AnalysisSection from '../../components/AnalysisSection'
+import { getSessionFeedback } from '../../api/interview'
+
+// 백엔드 역량 키 → 프론트엔드 역량 매핑
+const COMPETENCY_CONFIG = [
+  {
+    id: 'logic',
+    title: '논리 구조력',
+    backendKeys: ['logicStructure', 'answerClarity'],
+    icon: require('../../../assets/icons/logic.png'),
+  },
+  {
+    id: 'speed',
+    title: '속도 조절력',
+    backendKeys: ['speechSpeed'],
+    icon: require('../../../assets/icons/time.png'),
+  },
+  {
+    id: 'fluency',
+    title: '발화 유창성',
+    backendKeys: ['fillerWords'],
+    icon: require('../../../assets/icons/mouth.png'),
+  },
+  {
+    id: 'nonverbal',
+    title: '비언어 표현력',
+    backendKeys: ['eyeContact'],
+    icon: require('../../../assets/icons/person.png'),
+  },
+  {
+    id: 'persuasion',
+    title: '전달 설득력',
+    backendKeys: ['voiceVolume'],
+    icon: require('../../../assets/icons/mic.png'),
+  },
+]
+
+const getGradeInfo = (score) => {
+  if (score >= 90) return { label: '우수', color: '#3281FF' }
+  if (score >= 70) return { label: '양호', color: '#22C55E' }
+  if (score >= 50) return { label: '보통', color: '#ff8630' }
+  if (score >= 30) return { label: '주의', color: '#EAB308' }
+  return { label: '부족', color: '#ff4848' }
+}
+
+const avgScores = (keys, scoreMap) => {
+  const vals = keys.map(k => scoreMap?.[k] ?? 0)
+  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+}
+
+const firstDesc = (keys, descMap) =>
+  keys.map(k => descMap?.[k]).filter(Boolean)[0] || ''
+
+const formatDiff = (diff) => (diff >= 0 ? `+${diff}` : `${diff}`)
 
 
-export default function FeedbackScreen({ navigation, route}) {
-  const { from } = route.params ?? {}
+export default function FeedbackScreen({ navigation, route }) {
+  const { from, sessionId, periodQuestions } = route.params ?? {}
 
-  const [activeTab, setActiveTab] = useState('overall') // 'overall' | 'each'
-
-  const [selectedVideoTab, setSelectedVideoTab] = useState('all') 
-  // 'all' | '1' | '2' | '3' | '4' | '5' 
-
-  // 사용자가 중간에 면접을 종료하면 진행된 교시까지만 피드백이 제공될 예정이므로
-  // 백 연결 후 동적으로 리펙토링 예정임.
-  const videoTabs = [
-    { id: 'all', label: '전체' },
-    { id: '1', label: '1교시' },
-    { id: '2', label: '2교시' },
-    { id: '3', label: '3교시' },
-    { id: '4', label: '4교시' },
-    { id: '5', label: '5교시' },
-  ]
-
-  //영상별 비디오 리스트 (ex: 1: ~~~, 2: ~~~, ...)
-  const videoData = {
-    
-  }
-
-  const currentVideo = videoData[selectedVideoTab]
-
-  //분석 결과 데이터(임시), 추후 AI API 연결 필요
-  const analysisData = {
-    strengths: 
-    [
-      '질문이 무엇을 묻고 있는지 잘 이해하고,핵심에 맞는 답변을 했어요.', 
-      '경험을 실제 사례 중심으로 설명해, 답변이 생생하게 전달됐어요.',
-    ], 
-    weaknesses: 
-    [
-      '답변이 길어지면서 핵심 메시지가 다소 흐려진 부분이 있었어요.',
-      '결과보다는 과정 중심의 설명이 많아, 성과가 충분히 드러나지 않았어요.',
-    ],
-    improvements: 
-    [
-      '답변의 결론을 먼저 말한 뒤, 경험을 간단히 덧붙여 보세요.',
-      '상황-행동-결과 순서로 정리하면 답변이 더 명확해질 거예요.',
-    ],
-  }
-
-  /*총 면접 역량 데이터, score 추후 AI API 연결 필요.
-  ---------------------
-  <<socre에 따른 grade>>
-  100~90 우수 (파랑)
-  89~70 양호 (초록)
-  69~50 보통 (주황)
-  49~30 주의 (노랑)
-  30~0 부족 (빨강)
-  ---------------------
-  */
-  const competencyData = [
-    {
-      id: 'logic',
-      title: '논리 구조력',
-      subtitle: '근거가 부족해요.',
-      score: 90,
-      icon: require('../../../assets/icons/logic.png'),
-    },
-    {
-      id: 'speed',
-      title: '속도 조절력',
-      subtitle: '말이 빨라요.',
-      score: 88,
-      icon: require('../../../assets/icons/time.png'),
-    },
-    {
-      id: 'fluency',
-      title: '발화 유창성',
-      subtitle: '추임새가 잦아요.',
-      score: 66,
-      icon: require('../../../assets/icons/mouth.png'),
-    },
-    {
-      id: 'nonverbal',
-      title: '비언어 표현력',
-      subtitle: '표정이 어색해요.',
-      score: 43,
-      icon: require('../../../assets/icons/person.png'),
-    },
-    {
-      id: 'persuasion',
-      title: '전달 설득력',
-      subtitle: '목소리 톤이 너무 일정해요.',
-      score: 0,
-      icon: require('../../../assets/icons/mic.png'),
-    },
-  ]
-
-  // 전체 영상 질문 리스트 (임시 데이터)
-  const questionData = [
-    {
-      id: 1,
-      tabId: '1',
-      question: '간단한 자기소개 부탁드립니다.',
-      transcript: '안녕하세요, 사용자 중심의 경험을 설계하는 UX/UI 디자이너 레디큐입니다. 데이터와 사용자 행동을 기반으로 문제를 정의하고, 직관적이고 효율적인 인터페이스를 만드는 데 집중하고 있습니다.',
-    },
-    {
-      id: 2,
-      tabId: '2',
-      question: '프로젝트에서 어려웠던 경험을 설명해주세요.',
-      transcript: '프로젝트 진행 당시 ...',
-    },
-    {
-      id: 3,
-      tabId: '3',
-      question: '협업 과정에서 갈등을 해결한 경험이 있나요?',
-      transcript: '팀 프로젝트를 진행하며 ...',
-    },
-    {
-      id: 4,
-      tabId: '4',
-      question: '본인의 강점은 무엇이라고 생각하나요?',
-      transcript: '저의 가장 큰 강점은 ...',
-    },
-    {
-      id: 5,
-      tabId: '5',
-      question: '입사 후 이루고 싶은 목표가 있나요?',
-      transcript: '입사 후에는 ...',
-    },
-  ]
-
-  const selectedQuestionData = questionData.find(
-    item => item.tabId === selectedVideoTab
-  )
-
-  const [selectedQuestion, setSelectedQuestion] = useState(null)
-
-  // 추가된 state (기존 selectedQuestion 대체 느낌으로 사용)
+  // 모든 훅을 최상단에 선언
+  const [activeTab, setActiveTab] = useState('overall')
+  const [selectedVideoTab, setSelectedVideoTab] = useState('all')
+  const [feedbackData, setFeedbackData] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [openQuestionId, setOpenQuestionId] = useState(null)
 
-  const getGradeInfo = (score) => {
-    if (score >= 90) {
-      return { label: '우수', color: '#3281FF' } // 파랑
-    } else if (score >= 70) {
-      return { label: '양호', color: '#22C55E' } // 초록
-    } else if (score >= 50) {
-      return { label: '보통', color: '#ff8630' } // 주황
-    } else if (score >= 30) {
-      return { label: '주의', color: '#EAB308' } // 노랑
-    } else {
-      return { label: '부족', color: '#ff4848' } // 빨강
+  useEffect(() => {
+    if (!sessionId) {
+      setLoading(false)
+      return
     }
+    getSessionFeedback(sessionId)
+      .then(data => setFeedbackData(data))
+      .catch(() => Alert.alert('오류', '피드백 데이터를 불러올 수 없어요.'))
+      .finally(() => setLoading(false))
+  }, [sessionId])
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#3281FF" />
+      </View>
+    )
   }
 
+  // 백엔드 데이터 파싱
+  const finalFeedback = feedbackData?.finalFeedback
+  const periodFeedbacks = feedbackData?.periodFeedbacks || []
+  const competencyScores = finalFeedback?.competencyScores || {}
+  const competencyShortDescriptions = finalFeedback?.competencyShortDescriptions || {}
+
+  const totalScore = finalFeedback?.totalScore ?? 0
+  const prevScore = finalFeedback?.prevSessionScore ?? null
+  const firstScore = finalFeedback?.firstSessionScore ?? null
+
+  const competencyData = COMPETENCY_CONFIG.map(cfg => ({
+    ...cfg,
+    score: avgScores(cfg.backendKeys, competencyScores),
+    subtitle: firstDesc(cfg.backendKeys, competencyShortDescriptions),
+  }))
+
+  const analysisData = {
+    strengths: finalFeedback?.strongPoints || [],
+    weaknesses: finalFeedback?.weakPoints || [],
+    improvements: finalFeedback?.improvementPoints || [],
+  }
+
+  // 동적 탭 (완료된 교시 수 기준)
+  const videoTabs = [
+    { id: 'all', label: '전체' },
+    ...periodFeedbacks.map((_, i) => ({
+      id: String(i + 1),
+      label: `${i + 1}교시`,
+    })),
+  ]
+
+  // 교시별 질문 + AI 피드백 요약
+  const questionData = periodFeedbacks.map((pf, i) => ({
+    id: i + 1,
+    tabId: String(i + 1),
+    question: periodQuestions?.[i + 1] || `${i + 1}교시 질문`,
+    transcript: pf.summaryFeedback || '-',
+  }))
+
+  const selectedQuestionData = questionData.find(item => item.tabId === selectedVideoTab)
 
   return (
     <View style={styles.container}>
@@ -201,22 +172,21 @@ export default function FeedbackScreen({ navigation, route}) {
       </View>
 
       {/* 점수 */}
-      <ScrollView 
+      <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 20 }}
       >
         {activeTab === 'overall' && (
           <View style={styles.contentContainer}>
             <View style={styles.scoreContainer}>
-              
+
               <CustomText weight="bold" style={styles.scoreTitle}>
                 면접 결과
               </CustomText>
 
               <View style={styles.scoreRow}>
                 <CustomText weight="bold" style={styles.AIscore}>
-                  80.22점
-                  {/* 임의 점수. 추후 AI 점수로 로직 수정 필요 */}
+                  {totalScore}점
                 </CustomText>
 
                 <CustomText weight="bold" style={styles.totalscore}>
@@ -229,30 +199,38 @@ export default function FeedbackScreen({ navigation, route}) {
                 <View style={styles.compareRow}>
                   <CustomText weight="medium" style={styles.compareLabel}>
                     직전 면접 대비
-                    {/*  이전 면접 데이터 비교 로직 (이전 면접 데이터 없을 경우 '-' 출력) */}
                   </CustomText>
 
                   <CustomText weight="bold" style={styles.compareValue}>
-                    +5.08점 (75.14점)
+                    {prevScore != null
+                      ? `${formatDiff(totalScore - prevScore)}점 (${prevScore}점)`
+                      : '-'}
                   </CustomText>
                 </View>
 
                 <View style={styles.compareRow}>
                   <CustomText weight="medium" style={styles.compareLabel}>
                     첫 면접 대비
-                    {/*  첫 면접 데이터 비교 로직 (이게 필요할까?) */}
                   </CustomText>
 
                   <CustomText weight="bold" style={styles.compareValue}>
-                    +14.01점 (66.21점)
+                    {firstScore != null
+                      ? `${formatDiff(totalScore - firstScore)}점 (${firstScore}점)`
+                      : '-'}
                   </CustomText>
                 </View>
               </View>
 
-              {/* 이전 면접 보기 버튼*/}
-              <TouchableOpacity 
+              {/* 이전 면접 보기 버튼 */}
+              <TouchableOpacity
                 style={styles.historyButton}
-                onPress={() => navigation.navigate('FeedbackComparison')}
+                onPress={() => navigation.navigate('FeedbackComparison', {
+                  sessionId,
+                  totalScore,
+                  currentCompetencyScores: Object.fromEntries(
+                    competencyData.map(c => [c.id, c.score])
+                  ),
+                })}
               >
                 <CustomText weight="bold" style={styles.historyText}>
                   이전 면접 비교 보기
@@ -276,23 +254,23 @@ export default function FeedbackScreen({ navigation, route}) {
                 분석 결과
               </CustomText>
 
-                <AnalysisSection
-                  title="답변의 강점"
-                  items={analysisData.strengths}
-                  showDivider={true}
-                />
+              <AnalysisSection
+                title="답변의 강점"
+                items={analysisData.strengths}
+                showDivider={true}
+              />
 
-                <AnalysisSection
-                  title="아쉬운 점"
-                  items={analysisData.weaknesses}
-                  showDivider={true}
-                />
+              <AnalysisSection
+                title="아쉬운 점"
+                items={analysisData.weaknesses}
+                showDivider={true}
+              />
 
-                <AnalysisSection
-                  title="개선할 점"
-                  items={analysisData.improvements}
-                  showDivider={false}
-                />
+              <AnalysisSection
+                title="개선할 점"
+                items={analysisData.improvements}
+                showDivider={false}
+              />
             </View>
 
             {/* 구분선 */}
@@ -316,10 +294,12 @@ export default function FeedbackScreen({ navigation, route}) {
                     onPress={() =>
                       navigation.navigate('FeedbackDetail', {
                         competencyId: item.id,
+                        competencyBackendKeys: item.backendKeys,
+                        periodFeedbacks,
                       })
                     }
                   >
-                    
+
                     {/* 왼쪽 아이콘 */}
                     <View style={styles.iconBox}>
                       <Image source={item.icon} style={styles.icon} />
@@ -382,168 +362,158 @@ export default function FeedbackScreen({ navigation, route}) {
         )}
       </ScrollView>
 
-        {activeTab === 'each' && (
-          <View>
-            {/* 상단 가로 탭 */}
-            <ScrollView
-              style={{ flexGrow: 0 }}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.videoTabContainer}
-            >
-              {videoTabs.map(tab => {
-                const isActive = selectedVideoTab === tab.id
+      {activeTab === 'each' && (
+        <View>
+          {/* 상단 가로 탭 */}
+          <ScrollView
+            style={{ flexGrow: 0 }}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.videoTabContainer}
+          >
+            {videoTabs.map(tab => {
+              const isActive = selectedVideoTab === tab.id
 
-                return (
-                  <TouchableOpacity
-                    key={tab.id}
+              return (
+                <TouchableOpacity
+                  key={tab.id}
+                  style={[
+                    styles.videoTabButton,
+                    isActive && styles.activeVideoTabButton
+                  ]}
+                  onPress={() => setSelectedVideoTab(tab.id)}
+                >
+                  <CustomText
+                    weight="bold"
                     style={[
-                      styles.videoTabButton,
-                      isActive && styles.activeVideoTabButton
+                      styles.videoTabText,
+                      isActive && styles.activeVideoTabText
                     ]}
-                    onPress={() => setSelectedVideoTab(tab.id)}
                   >
-                    <CustomText
-                      weight="bold"
-                      style={[
-                        styles.videoTabText,
-                        isActive && styles.activeVideoTabText
-                      ]}
-                    >
-                      {tab.label}
-                    </CustomText>
-                  </TouchableOpacity>
-                )
-              })}
-            </ScrollView>
+                    {tab.label}
+                  </CustomText>
+                </TouchableOpacity>
+              )
+            })}
+          </ScrollView>
 
-            <ScrollView 
-              style={{ flex: 1 }}
-              contentContainerStyle={{ padding: 20, paddingBottom: 150 }}
-            > 
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: 20, paddingBottom: 150 }}
+          >
 
-              {/* 탭별 화면 */}
-              <View style={styles.videoContentContainer}>
-                
-                {/* 영상 영역 */}
-                {selectedVideoTab !== 'all' && (
+            {/* 탭별 화면 */}
+            <View style={styles.videoContentContainer}>
+
+              {/* 영상 영역 */}
+              {selectedVideoTab !== 'all' && (
                 <View style={styles.videoBox}>
-                  <CustomText style={styles.videoPlaceholder}> 
-                    영상 들어갈 영역   {/* 영상 실제로 들어갈 때는  videoPlaceholder 삭제 예정 */}
+                  <CustomText style={styles.videoPlaceholder}>
+                    영상 들어갈 영역
+                  </CustomText>
+                </View>
+              )}
+
+
+              {selectedVideoTab === 'all' && (
+                <View>
+
+                  {/* 질문 리스트 */}
+                  <CustomText weight="bold" style={styles.questionTitle}>
+                    질문 리스트
                   </CustomText>
 
-                  {/* 영상 실제로 들어갈 때 videoPlaceholder 삭제하고 사용 */}
-                  {/* <Video
-                    source={{ uri: currentVideo }}
-                    style={styles.video}
-                    useNativeControls
-                    resizeMode="cover"
-                  /> */}
+                  <View style={styles.questionContainer}>
+                    {questionData.map(item => {
+                      const isOpen = openQuestionId === item.id
+
+                      return (
+                        <View key={item.id}>
+                          <TouchableOpacity
+                            style={styles.questionItem}
+                            activeOpacity={0.7}
+                            onPress={() => {
+                              setOpenQuestionId(prev =>
+                                prev === item.id ? null : item.id
+                              )
+                            }}
+                          >
+                            <View style={styles.questionLeft}>
+                              <CustomText weight="bold" style={styles.questionNumber}>
+                                Q{item.id}
+                              </CustomText>
+
+                              <CustomText style={styles.questionText}>
+                                {item.question}
+                              </CustomText>
+                            </View>
+
+                            <Image
+                              source={
+                                isOpen
+                                  ? require('../../../assets/icons/toggle2.png')
+                                  : require('../../../assets/icons/toggle1.png')
+                              }
+                              style={styles.questionArrow}
+                            />
+                          </TouchableOpacity>
+
+                          {isOpen && (
+                            <View style={styles.detailContainer}>
+
+                              <View style={styles.transcriptContainer}>
+                                <CustomText weight="bold" style={styles.transcriptTitle}>
+                                  내 답변
+                                </CustomText>
+
+                                <CustomText style={styles.transcriptText}>
+                                  {item.transcript}
+                                </CustomText>
+                              </View>
+                            </View>
+                          )}
+                        </View>
+                      )
+                    })}
+                  </View>
                 </View>
-                )}
+              )}
 
+              {selectedVideoTab !== 'all' && selectedQuestionData && (
+                <View style={styles.detailContainer}>
 
-                {selectedVideoTab === 'all' && (
-                  <View>
-
-                    {/* 질문 리스트 */}
-                    <CustomText weight="bold" style={styles.questionTitle}>
-                      질문 리스트
+                  {/* 질문 */}
+                  <View style={styles.detailQuestionRow}>
+                    <CustomText weight="bold" style={styles.detailQuestionNumber}>
+                      Q{selectedQuestionData.id}
                     </CustomText>
 
-                    <View style={styles.questionContainer}>
-                      {questionData.map(item => {
-                        const isOpen = openQuestionId === item.id
-
-                        return (
-                          <View key={item.id}>
-                            <TouchableOpacity
-                              style={styles.questionItem}
-                              activeOpacity={0.7}
-                              onPress={() => {
-                                setOpenQuestionId(prev =>
-                                  prev === item.id ? null : item.id
-                                )
-                              }}
-                            >
-                              <View style={styles.questionLeft}>
-                                <CustomText weight="bold" style={styles.questionNumber}>
-                                  Q{item.id}
-                                </CustomText>
-
-                                <CustomText style={styles.questionText}>
-                                  {item.question}
-                                </CustomText>
-                              </View>
-
-                              <Image
-                                source={
-                                  isOpen
-                                    ? require('../../../assets/icons/toggle2.png')
-                                    : require('../../../assets/icons/toggle1.png')
-                                }
-                                style={styles.questionArrow}
-                              />
-                            </TouchableOpacity>
-
-                            {isOpen && (
-                              <View style={styles.detailContainer}>
-
-                                <View style={styles.transcriptContainer}>
-                                  <CustomText weight="bold" style={styles.transcriptTitle}>
-                                    내 답변
-                                  </CustomText>
-
-                                  <CustomText style={styles.transcriptText}>
-                                    {item.transcript}
-                                  </CustomText>
-                                </View>
-                              </View>
-                            )}
-                          </View>
-                        )
-                      })}
-                    </View>
+                    <CustomText style={styles.detailQuestionText}>
+                      {selectedQuestionData.question}
+                    </CustomText>
                   </View>
-                )}
 
-                {selectedVideoTab !== 'all' && selectedQuestionData && (
-                  <View style={styles.detailContainer}>
+                  {/* 답변 전문 */}
+                  <View style={styles.transcriptContainer}>
+                    <CustomText weight="bold" style={styles.transcriptTitle}>
+                      내 답변
+                    </CustomText>
 
-                    {/* 질문 */}
-                    <View style={styles.detailQuestionRow}>
-                      <CustomText weight="bold" style={styles.detailQuestionNumber}>
-                        Q{selectedQuestionData.id}
-                      </CustomText>
-
-                      <CustomText style={styles.detailQuestionText}>
-                        {selectedQuestionData.question}
-                      </CustomText>
-                    </View>
-
-                    {/* 답변 전문 */}
-                    <View style={styles.transcriptContainer}>
-                      <CustomText weight="bold" style={styles.transcriptTitle}>
-                        내 답변
-                      </CustomText>
-
-                      <CustomText style={styles.transcriptText}>
-                        {selectedQuestionData.transcript}
-                      </CustomText>
-                    </View>
-
+                    <CustomText style={styles.transcriptText}>
+                      {selectedQuestionData.transcript}
+                    </CustomText>
                   </View>
-                )}
 
-              </View>
+                </View>
+              )}
 
-            </ScrollView>
+            </View>
 
-          </View>
-        )}
-        
+          </ScrollView>
+
+        </View>
+      )}
+
     </View>
-
-    
   )
 }

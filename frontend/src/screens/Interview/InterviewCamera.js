@@ -1,20 +1,37 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native'
-import { useEffect, useState } from 'react'
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native'
+import { useEffect, useState, useRef } from 'react'
 import { CameraView, Camera } from 'expo-camera'
 import { styles } from './InterviewCameraStyles'
 import CustomText from '../../components/CustomText'
 import CustomButton from '../../components/CustomButton'
 import LoadingScreen from '../../components/LoadingScreen'
 import QuestionSelectScreen from '../../components/QuestionSelect'
+import {
+  startInterview,
+  uploadPeriodVideo,
+  generatePeriodFeedback,
+  getNextOptions,
+  proceedToNextPeriod,
+} from '../../api/interview'
+
+const INTERVIEWER_TYPE_MAP = {
+  basic: 'DEFAULT',
+  kind: 'FRIENDLY',
+  strict: 'PRESSURE',
+  logic: 'LOGIC',
+}
 
 export default function InterviewCamera({ navigation, route }) {
 
-  const { selectedType } = route.params || {}
+  const { selectedType, interviewerType, title } = route.params || {}
 
   const [hasPermission, setHasPermission] = useState(null)
 
   // 카메라
   const [facing, setFacing] = useState('front')
+
+  // 면접 세션
+  const [sessionId, setSessionId] = useState(null)
 
   // 면접 흐름 관리
   // guide → question → select → loading → break → end
@@ -33,27 +50,20 @@ export default function InterviewCamera({ navigation, route }) {
   // 질문
   const [question, setQuestion] = useState('')
 
-  const questionCandidates = [
-    '최근 협업 경험에 대해 설명해주세요.',
-    '가장 어려웠던 문제 해결 경험은 무엇인가요?',
-    '본인의 강점은 무엇이라고 생각하시나요?',
-    '실패했던 경험과 극복 과정을 말해주세요.',
-    '지원 직무에 관심을 가지게 된 계기는 무엇인가요?',
-  ]
+  // 꼬리질문 후보 (select 모드)
+  const [followUpQuestions, setFollowUpQuestions] = useState([])
 
   // exit 버튼 상태
   const [exitModalVisible, setExitModalVisible] = useState(false)
 
   // 면접 종료 타입
-  const [exitType, setExitType] = useState(null) 
+  const [exitType, setExitType] = useState(null)
   // 'normal' | 'forced'
-  // normal: question → loading → break → ... → loading → end
-  // forced: exit modal → loading → end → InterviewEnd
 
   // exit 버튼 눌렀을 때 멈춤 상태 (Timer 제어)
   const [isPaused, setIsPaused] = useState(false)
 
-  // 녹화 여부 (exit 눌렀을 때 녹화 중지되도록)
+  // 녹화 여부
   const [isRecording, setIsRecording] = useState(false)
 
   // 로딩 단계
@@ -65,11 +75,38 @@ export default function InterviewCamera({ navigation, route }) {
     '완료되었어요.',
   ]
 
-  // 카메라 권한
+  // 녹화 관련 refs
+  const cameraRef = useRef(null)
+  const isRecordingRef = useRef(false)
+  const recordingPromiseRef = useRef(null)
+  const periodQuestionsRef = useRef({}) // { periodNum: questionText }
+
+  // 권한 요청 + 면접 세션 시작
   useEffect(() => {
     ;(async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync()
-      setHasPermission(status === 'granted')
+      const { status: camStatus } = await Camera.requestCameraPermissionsAsync()
+      try {
+        await Camera.requestMicrophonePermissionsAsync()
+      } catch {
+        // 마이크 권한 API 미지원 시 무시
+      }
+      setHasPermission(camStatus === 'granted')
+      if (camStatus !== 'granted') return
+
+      try {
+        const res = await startInterview({
+          interviewerType: INTERVIEWER_TYPE_MAP[interviewerType] || 'DEFAULT',
+          title: title || '면접',
+        })
+        setSessionId(res.sessionId)
+        const qText = res.question
+        setQuestion(`1교시\n${qText}`)
+        periodQuestionsRef.current[1] = qText
+      } catch (e) {
+        Alert.alert('면접 시작 실패', '서버 연결을 확인하고 다시 시도해주세요.', [
+          { text: '뒤로가기', onPress: () => navigation.goBack() },
+        ])
+      }
     })()
   }, [])
 
@@ -112,6 +149,11 @@ export default function InterviewCamera({ navigation, route }) {
         return
       }
 
+      // 준비시간 종료 → 녹화 시작
+      if (!isRecordingRef.current) {
+        startRecording()
+      }
+
       // 준비 시간 끝나면 답변 시간 감소
       setAnswerTime(prev => {
         if (prev <= 1) {
@@ -128,97 +170,132 @@ export default function InterviewCamera({ navigation, route }) {
     return () => clearInterval(timer)
   }, [phase, readyTime, isPaused])
 
-  // 질문 호출
+  // 녹화 시작
+  const startRecording = () => {
+    if (!cameraRef.current || isRecordingRef.current) return
+    try {
+      isRecordingRef.current = true
+      setIsRecording(true)
+      recordingPromiseRef.current = cameraRef.current.recordAsync({ maxDuration: 95 })
+    } catch (e) {
+      isRecordingRef.current = false
+      setIsRecording(false)
+      recordingPromiseRef.current = null
+    }
+  }
+
+  // 녹화 중지
+  const stopRecording = () => {
+    if (!isRecordingRef.current || !cameraRef.current) return
+    cameraRef.current.stopRecording()
+    isRecordingRef.current = false
+    setIsRecording(false)
+  }
+
+  // 체크 버튼 / 시간 종료
+  const handleNext = () => {
+    stopRecording()
+    setPhase('loading')
+  }
+
+  // 로딩 진행 + API 호출
   useEffect(() => {
-    if (phase !== 'question') return
+    if (phase !== 'loading') return
 
-    // 1교시는 고정 자기소개
-    if (round === 1 && question === '') {
-      setQuestion('1교시\n간단한 자기소개 부탁드립니다.')
-      return
+    const curSessionId = sessionId
+    const curRound = round
+    const curExitType = exitType
+
+    const doLoadingFlow = async () => {
+      setLoadingStep(0)
+
+      try {
+        if (recordingPromiseRef.current && curSessionId) {
+          const recordData = await recordingPromiseRef.current
+          recordingPromiseRef.current = null
+          const videoUri = recordData?.uri
+
+          if (videoUri) {
+            await uploadPeriodVideo(curSessionId, curRound, videoUri)
+            setLoadingStep(1)
+            await generatePeriodFeedback(curSessionId, curRound)
+          }
+        }
+      } catch (e) {
+        console.warn('[InterviewCamera] 피드백 생성 오류:', e.message)
+      }
+
+      setLoadingStep(2)
+
+      setTimeout(() => {
+        if (curExitType === 'forced') {
+          setPhase('end')
+        } else {
+          setPhase('break')
+        }
+      }, 1200)
     }
 
-    // 랜덤 질문 모드
-    if (
-      selectedType === 'random' &&
-      round !== 1 &&
-      question === ''
-    ) {
-      const randomIndex = Math.floor(
-        Math.random() * questionCandidates.length
-      )
+    doLoadingFlow()
+  }, [phase, sessionId, round, exitType])
 
-      setQuestion(
-        `${round}교시\n${questionCandidates[randomIndex]}`
-      )
-    }
-  }, [phase, round])
-
-  // 질문 이동
-  const handleBreakAction = (type) => {
+  // 쉬는 시간 액션
+  const handleBreakAction = async (type) => {
     if (type === 'end') {
       setPhase('end')
       return
     }
 
-    const nextRound = round + 1
-
-    setRound(nextRound)
-    setQuestion('')
-
-    // 질문 직접 선택
     if (selectedType === 'select') {
+      try {
+        const options = await getNextOptions(sessionId, round)
+        setFollowUpQuestions(options.followUpQuestions || [])
+      } catch (e) {
+        setFollowUpQuestions([])
+      }
       setPhase('select')
       return
     }
 
-    // 랜덤 질문
+    // 랜덤: NEW_QUESTION 자동 진행
+    try {
+      const res = await proceedToNextPeriod(sessionId, round, 'NEW_QUESTION')
+      const qText = res.question
+      setRound(res.periodNum)
+      setQuestion(`${res.periodNum}교시\n${qText}`)
+      periodQuestionsRef.current[res.periodNum] = qText
+    } catch (e) {
+      const nextRound = round + 1
+      setRound(nextRound)
+      setQuestion(`${nextRound}교시\n다음 질문을 준비해주세요.`)
+    }
     setPhase('question')
   }
 
-  // 체크 버튼
-  const handleNext = () => {
-    setPhase('loading')
-  }
-
-  // 로딩 진행
-  useEffect(() => {
-    if (phase !== 'loading') return
-
-    setLoadingStep(0)
-
-    const timer1 = setTimeout(() => {
-      setLoadingStep(1)
-    }, 1500)
-
-    const timer2 = setTimeout(() => {
-      setLoadingStep(2)
-
-      setTimeout(() => {
-        if (exitType === 'forced') {
-          setPhase('end') // 중도 종료
-        } else {
-          // 정상 흐름
-          if (round >= 5) {
-            setPhase('end')
-          } else {
-            setPhase('break') 
-          }
-        }
-      }, 1500)
-
-    }, 3000)
-
-    return () => {
-      clearTimeout(timer1)
-      clearTimeout(timer2)
+  // 질문 직접 선택 (select 모드)
+  const handleQuestionSelect = async (selectedQuestion) => {
+    try {
+      const res = await proceedToNextPeriod(sessionId, round, 'FOLLOW_UP', selectedQuestion)
+      const qText = res.question
+      setRound(res.periodNum)
+      setQuestion(`${res.periodNum}교시\n${qText}`)
+      periodQuestionsRef.current[res.periodNum] = qText
+    } catch (e) {
+      const nextRound = round + 1
+      setRound(nextRound)
+      setQuestion(`${nextRound}교시\n${selectedQuestion}`)
+      periodQuestionsRef.current[nextRound] = selectedQuestion
     }
-  }, [phase, exitType, round])
+    setPhase('question')
+  }
 
   // 종료
   useEffect(() => {
     if (phase === 'end') {
-      navigation.replace('InterviewEnd')
+      navigation.replace('InterviewEnd', {
+        sessionId,
+        periodQuestions: periodQuestionsRef.current,
+      })
     }
   }, [phase])
 
@@ -236,8 +313,10 @@ export default function InterviewCamera({ navigation, route }) {
   return (
     <View style={{ flex: 1 }}>
       <CameraView
+        ref={cameraRef}
         style={StyleSheet.absoluteFillObject}
         facing={facing}
+        mode="video"
       />
 
       {/* guide */}
@@ -311,12 +390,9 @@ export default function InterviewCamera({ navigation, route }) {
       {/* select */}
       {phase === 'select' && (
         <QuestionSelectScreen
-          round={round}
-          questionCandidates={questionCandidates}
-          onSelect={(item) => {
-            setQuestion(`${round}교시\n${item}`)
-            setPhase('question')
-          }}
+          round={round + 1}
+          questionCandidates={followUpQuestions.length > 0 ? followUpQuestions : ['질문을 불러오는 중이에요...']}
+          onSelect={handleQuestionSelect}
         />
       )}
 
@@ -340,7 +416,7 @@ export default function InterviewCamera({ navigation, route }) {
               styles.circleButton,
               (phase === 'guide' || readyTime > 0) && { opacity: 0.3 }
             ]}
-            disabled={phase === 'guide'|| readyTime > 0} 
+            disabled={phase === 'guide'|| readyTime > 0}
             onPress={handleNext}
           >
             <Image
@@ -388,7 +464,7 @@ export default function InterviewCamera({ navigation, route }) {
                 onPress={() => {
                   setExitModalVisible(false)
                   setIsPaused(false)
-
+                  stopRecording()
                   setExitType('forced')
                   setPhase('loading')
                 }}
@@ -401,9 +477,10 @@ export default function InterviewCamera({ navigation, route }) {
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalCancel]}
                 onPress={() => {
-                  setExitModalVisible(false) 
+                  setExitModalVisible(false)
                   setIsPaused(false)
-                }} 
+                  setExitType(null)
+                }}
               >
                 <CustomText weight="bold" style={styles.modalCancelText}>
                   취소

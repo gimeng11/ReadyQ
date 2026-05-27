@@ -5,7 +5,7 @@ import CustomButton from '../../components/CustomButton'
 import { completeInterview } from '../../api/interview'
 
 export default function InterviewEnd({ navigation, route }) {
-  const { sessionId } = route.params ?? {}
+  const { sessionId, periodQuestions } = route.params ?? {}
 
   const handleViewFeedback = () => {
     // 조기 종료 시 completeInterview가 아직 실행 안 됐을 수 있으므로 백그라운드로 보장
@@ -14,6 +14,7 @@ export default function InterviewEnd({ navigation, route }) {
     }
     navigation.replace('Feedback', {
       sessionId,
+      periodQuestions,
       from: 'InterviewEnd',
     })
   }
