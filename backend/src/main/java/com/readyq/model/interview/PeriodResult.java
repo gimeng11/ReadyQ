@@ -35,6 +35,9 @@ public class PeriodResult {
     // 파싱된 피드백 객체
     private PeriodFeedback parsedFeedback;
 
+    // Gemini STT로 추출한 답변 전사 텍스트
+    private String transcript;
+
     // submitPeriodAnswer 시 생성한 꼬리질문 5개 (getNextOptions에서 재활용)
     private List<String> followUpQuestions;
 

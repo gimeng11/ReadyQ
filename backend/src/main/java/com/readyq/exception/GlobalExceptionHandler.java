@@ -1,6 +1,8 @@
 package com.readyq.exception;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.catalina.connector.ClientAbortException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -14,6 +16,12 @@ import java.util.stream.Collectors;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    // 영상 스트리밍 중 클라이언트가 연결을 끊은 경우 — 정상 동작이므로 조용히 무시
+    @ExceptionHandler(ClientAbortException.class)
+    public void handleClientAbort(ClientAbortException e) {
+        log.debug("[Video] 클라이언트가 스트리밍 연결을 종료했습니다: {}", e.getMessage());
+    }
 
     // Validation 오류
     @ExceptionHandler(MethodArgumentNotValidException.class)

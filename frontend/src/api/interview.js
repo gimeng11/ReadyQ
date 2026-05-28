@@ -1,4 +1,5 @@
-import { apiCallAuth, apiCallMultipart } from './client'
+import { apiCallAuth, apiCallMultipart, BASE_URL } from './client'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 // 면접 세션 시작 + 1교시 질문 생성
 // request: { interviewerType, coverLetter, targetCompany, targetJob }
@@ -57,3 +58,12 @@ export const deleteInterview = (sessionId) =>
 // 상단 고정 / 해제 토글
 export const togglePinInterview = (sessionId) =>
   apiCallAuth(`/api/interview/${sessionId}/pin`, { method: 'PATCH' })
+
+// 교시 영상 스트리밍 소스 생성 (expo-video source 객체 반환)
+export const getPeriodVideoSource = async (sessionId, periodNum) => {
+  const token = await AsyncStorage.getItem('token')
+  return {
+    uri: `${BASE_URL}/api/interview/${sessionId}/period/${periodNum}/video`,
+    headers: { Authorization: token ? `Bearer ${token}` : '' },
+  }
+}

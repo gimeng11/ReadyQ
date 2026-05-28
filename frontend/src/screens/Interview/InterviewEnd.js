@@ -1,4 +1,5 @@
-import { View } from 'react-native'
+import { View, ActivityIndicator } from 'react-native'
+import { useState } from 'react'
 import { styles } from './InterviewEndStyles'
 import CustomText from '../../components/CustomText'
 import CustomButton from '../../components/CustomButton'
@@ -6,17 +7,33 @@ import { completeInterview } from '../../api/interview'
 
 export default function InterviewEnd({ navigation, route }) {
   const { sessionId, periodQuestions } = route.params ?? {}
+  const [completing, setCompleting] = useState(false)
 
-  const handleViewFeedback = () => {
-    // 조기 종료 시 completeInterview가 아직 실행 안 됐을 수 있으므로 백그라운드로 보장
+  const handleViewFeedback = async () => {
     if (sessionId) {
-      completeInterview(sessionId).catch(() => {})
+      setCompleting(true)
+      try {
+        await completeInterview(sessionId)
+      } catch (_) {
+        // 이미 완료된 세션이면 무시
+      } finally {
+        setCompleting(false)
+      }
     }
     navigation.replace('Feedback', {
       sessionId,
       periodQuestions,
       from: 'InterviewEnd',
     })
+  }
+
+  if (completing) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#3281FF" />
+        <CustomText style={{ marginTop: 16, color: '#666' }}>피드백을 생성하고 있어요...</CustomText>
+      </View>
+    )
   }
 
   return (

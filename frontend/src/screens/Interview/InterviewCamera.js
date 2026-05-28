@@ -39,7 +39,7 @@ export default function InterviewCamera({ navigation, route }) {
   const [round, setRound] = useState(1)
 
   // 가이드 타이머
-  const [timeLeft, setTimeLeft] = useState(3)
+  const [timeLeft, setTimeLeft] = useState(30)
 
   // 준비 시간
   const [readyTime, setReadyTime] = useState(10)

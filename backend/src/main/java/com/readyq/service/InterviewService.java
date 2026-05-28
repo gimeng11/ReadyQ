@@ -137,7 +137,7 @@ public class InterviewService {
                 .map(p -> p.getParsedFeedback().getSummaryFeedback())
                 .orElse(null);
 
-        // 피드백 생성(영상 분석, 느림) + NEW_QUESTION 생성(텍스트, 빠름) 병렬 실행
+        // 피드백 생성(영상 분석) + NEW_QUESTION 생성(텍스트) + STT 전사 병렬 실행
         long t = System.currentTimeMillis();
         CompletableFuture<GeminiInterviewService.PeriodAnalysisResult> feedbackFuture =
                 CompletableFuture.supplyAsync(() ->
@@ -149,19 +149,26 @@ public class InterviewService {
                         geminiService.generateNewQuestion(null, targetCompany, targetJob,
                                 prevQuestions, introSummary, currentQuestion, iType));
 
+        CompletableFuture<String> transcriptFuture =
+                CompletableFuture.supplyAsync(() ->
+                        geminiService.extractTranscript(geminiUri, geminiMimeType));
+
         GeminiInterviewService.PeriodAnalysisResult analysis;
         String pregenQuestion;
+        String transcript;
         try {
-            analysis       = feedbackFuture.get(150, TimeUnit.SECONDS);
-            pregenQuestion = newQuestionFuture.get(30,  TimeUnit.SECONDS);
+            analysis       = feedbackFuture.get(300, TimeUnit.SECONDS);
+            pregenQuestion = newQuestionFuture.get(60,  TimeUnit.SECONDS);
+            transcript     = transcriptFuture.get(120,  TimeUnit.SECONDS);
         } catch (java.util.concurrent.TimeoutException e) {
             analysis       = feedbackFuture.getNow(null);
             pregenQuestion = null;
+            transcript     = null;
             if (analysis == null) throw new RuntimeException("피드백 생성 타임아웃", e);
         } catch (Exception e) {
             throw new RuntimeException("분석 중 오류: " + e.getMessage(), e);
         }
-        log.info("[TIMING] {}교시 피드백+NEW_QUESTION 병렬 생성: {}ms", periodNum, System.currentTimeMillis() - t);
+        log.info("[TIMING] {}교시 피드백+NEW_QUESTION+STT 병렬 생성: {}ms", periodNum, System.currentTimeMillis() - t);
 
         PeriodFeedback parsedFeedback = geminiService.parsePeriodFeedback(analysis.feedbackJson());
 
@@ -169,6 +176,7 @@ public class InterviewService {
         periodResult.setParsedFeedback(parsedFeedback);
         periodResult.setFollowUpQuestions(analysis.followUpQuestions());
         periodResult.setPreGeneratedNewQuestion(pregenQuestion);
+        periodResult.setTranscript(transcript);
         periodResult.setCompletedAt(LocalDateTime.now());
 
         sessionRepository.save(session);
@@ -329,7 +337,7 @@ public class InterviewService {
         session.setCompletedAt(LocalDateTime.now());
         sessionRepository.save(session);
 
-        deleteSessionVideos(userId, sessionId);
+        // 영상은 3일 후 VideoCleanupService가 일괄 삭제 (즉시 삭제 안 함)
 
         return buildFinalFeedbackResponse(session);
     }
@@ -449,23 +457,6 @@ public class InterviewService {
         return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
     }
 
-    private void deleteSessionVideos(String userId, String sessionId) {
-        try {
-            Path dir = Paths.get(uploadBasePath, userId, sessionId);
-            if (!Files.exists(dir)) return;
-            try (var stream = Files.walk(dir)) {
-                stream.sorted(java.util.Comparator.reverseOrder())
-                      .forEach(path -> {
-                          try { Files.delete(path); }
-                          catch (IOException ex) { log.warn("영상 파일 삭제 실패: {}", path, ex); }
-                      });
-            }
-            log.info("세션 영상 삭제 완료. userId={}, sessionId={}", userId, sessionId);
-        } catch (IOException e) {
-            log.warn("세션 영상 디렉토리 삭제 실패. userId={}, sessionId={}", userId, sessionId, e);
-        }
-    }
-
     private Map<String, Integer> computeAverageCompetencyScores(List<PeriodFeedback> feedbacks) {
         Map<String, Integer> result = new HashMap<>();
         if (feedbacks.isEmpty()) return result;
@@ -516,7 +507,8 @@ public class InterviewService {
                                         InterviewSession currentSession, FinalFeedback finalFeedback) {
         try {
             List<InterviewSession> completed = sessionRepository.findByUserIdAndStatus(userId, InterviewStatus.COMPLETED);
-            List<InterviewSession> recent3 = completed.stream()
+            // 현재 세션 제외한 이전 면접 최대 3회 (최신순)
+            List<InterviewSession> prevSessions = completed.stream()
                     .filter(s -> !s.getId().equals(currentSessionId))
                     .filter(s -> s.getFinalFeedback() != null && s.getFinalFeedback().getCompetencyScores() != null)
                     .filter(s -> s.getCompletedAt() != null)
@@ -528,11 +520,11 @@ public class InterviewService {
             // answerClarity는 프론트 역량 UI에 미노출 — 5개만 사용
             String[] keys = {"logicStructure", "speechSpeed", "voiceVolume", "eyeContact", "fillerWords"};
 
-            if (!recent3.isEmpty()) {
+            if (!prevSessions.isEmpty()) {
                 for (String key : keys) {
                     double sum = 0;
                     int count = 0;
-                    for (InterviewSession s : recent3) {
+                    for (InterviewSession s : prevSessions) {
                         Map<String, Integer> cs = s.getFinalFeedback().getCompetencyScores();
                         if (cs != null && cs.containsKey(key)) {
                             sum += cs.get(key);
@@ -566,16 +558,86 @@ public class InterviewService {
         }
     }
 
+    // ───────────────────────────────────────────────
+    // 영상 스트리밍 (3일간 보관)
+    // ───────────────────────────────────────────────
+
+    public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> getPeriodVideo(
+            String userId, String sessionId, int periodNum) {
+        InterviewSession session = getSessionAndValidateOwner(sessionId, userId);
+        PeriodResult periodResult = getPeriodResult(session, periodNum);
+
+        String videoPath = periodResult.getVideoPath();
+        if (videoPath == null) {
+            throw new IllegalStateException("이 교시의 영상 경로가 없습니다.");
+        }
+
+        Path path = Paths.get(videoPath);
+        if (!Files.exists(path)) {
+            throw new IllegalStateException("영상 파일이 존재하지 않습니다. 보관 기간(3일)이 지났을 수 있습니다.");
+        }
+
+        try {
+            org.springframework.core.io.Resource resource =
+                    new org.springframework.core.io.FileSystemResource(path.toFile());
+            String mimeType = Files.probeContentType(path);
+            if (mimeType == null) mimeType = "video/mp4";
+            return org.springframework.http.ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.parseMediaType(mimeType))
+                    .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline")
+                    .header(org.springframework.http.HttpHeaders.ACCEPT_RANGES, "bytes")
+                    .body(resource);
+        } catch (IOException e) {
+            throw new RuntimeException("영상 파일을 읽을 수 없습니다.", e);
+        }
+    }
+
+    // ───────────────────────────────────────────────
+    // 영상 삭제 (VideoCleanupService에서 호출)
+    // ───────────────────────────────────────────────
+
+    public void deleteSessionVideos(String userId, String sessionId) {
+        try {
+            Path dir = Paths.get(uploadBasePath, userId, sessionId);
+            if (!Files.exists(dir)) return;
+            try (var stream = Files.walk(dir)) {
+                stream.sorted(java.util.Comparator.reverseOrder())
+                      .forEach(path -> {
+                          try { Files.delete(path); }
+                          catch (IOException ex) { log.warn("영상 파일 삭제 실패: {}", path, ex); }
+                      });
+            }
+            log.info("세션 영상 삭제 완료. userId={}, sessionId={}", userId, sessionId);
+        } catch (IOException e) {
+            log.warn("세션 영상 디렉토리 삭제 실패. userId={}, sessionId={}", userId, sessionId, e);
+        }
+    }
+
     private FinalFeedbackResponse buildFinalFeedbackResponse(InterviewSession session) {
         List<PeriodFeedback> periodFeedbacks = session.getPeriods().stream()
                 .filter(p -> p.getParsedFeedback() != null)
                 .map(PeriodResult::getParsedFeedback)
                 .collect(Collectors.toList());
 
+        List<com.readyq.dto.interview.PeriodDetail> periodDetails = session.getPeriods().stream()
+                .map(pr -> {
+                    boolean hasVideo = pr.getVideoPath() != null
+                            && Files.exists(Paths.get(pr.getVideoPath()));
+                    return com.readyq.dto.interview.PeriodDetail.builder()
+                            .periodNum(pr.getPeriodNum())
+                            .question(pr.getQuestion())
+                            .transcript(pr.getTranscript())
+                            .hasVideo(hasVideo)
+                            .feedback(pr.getParsedFeedback())
+                            .build();
+                })
+                .collect(Collectors.toList());
+
         return FinalFeedbackResponse.builder()
                 .sessionId(session.getId())
                 .finalFeedback(session.getFinalFeedback())
                 .periodFeedbacks(periodFeedbacks)
+                .periodDetails(periodDetails)
                 .build();
     }
 }

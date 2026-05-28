@@ -805,6 +805,31 @@ public class GeminiInterviewService {
     }
 
     // ───────────────────────────────────────────────
+    // 7. 영상 → 답변 전사 (STT)
+    // ───────────────────────────────────────────────
+
+    /**
+     * Gemini를 이용해 영상에서 면접자의 발화 내용을 텍스트로 전사한다.
+     * 실패 시 null 반환 (면접 흐름에 영향 없음).
+     */
+    public String extractTranscript(String fileUri, String mimeType) {
+        String prompt =
+                "이 영상에서 면접자가 말하는 내용을 정확하게 받아 적어주세요.\n" +
+                "한국어로 발화된 내용만 자연스럽게 작성하세요.\n" +
+                "받아쓰기 텍스트만 반환하고, 타임스탬프·설명·머리말은 쓰지 마세요.\n" +
+                "침묵이나 배경음은 무시하세요.";
+        try {
+            long t = System.currentTimeMillis();
+            String result = callGeminiWithVideo(fileUri, mimeType, prompt).trim();
+            log.info("[TIMING] extractTranscript Gemini 호출: {}ms", System.currentTimeMillis() - t);
+            return result.isBlank() ? null : result;
+        } catch (Exception e) {
+            log.warn("음성 전사 실패 (무시): {}", e.getMessage());
+            return null;
+        }
+    }
+
+    // ───────────────────────────────────────────────
     // One Point 코칭 메시지 생성
     // ───────────────────────────────────────────────
 
@@ -816,7 +841,7 @@ public class GeminiInterviewService {
         String job = (targetJob != null && !targetJob.isBlank()) ? targetJob : "지원 직무";
         String prompt = String.format(
                 "당신은 취업 면접 전문 코치입니다.\n" +
-                "지원자의 최근 3회 '%s' 면접 데이터를 분석한 결과, '%s(%s)' 역량이 지속적으로 가장 낮게 나타났습니다.\n\n" +
+                "지원자의 최근 '%s' 면접 데이터를 분석한 결과, '%s(%s)' 역량이 가장 낮게 나타났습니다.\n\n" +
                 "이 역량을 집중 개선할 수 있는 One Point 코칭 메시지를 작성해주세요.\n" +
                 "조건: 실천 가능한 구체적 방법 1가지, 50자 이내, 격려하는 어조.\n\n" +
                 "코칭 메시지 한 문장만 반환하세요.",

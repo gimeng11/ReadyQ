@@ -11,6 +11,26 @@ const competencyMap = {
   persuasion: '전달 설득력',
 }
 
+// 역량별 세부 항목 → 백엔드 점수 키 매핑
+const COMPETENCY_DETAIL_CONFIG = {
+  logic: [
+    { title: '논리 구조', key: 'logicStructure' },
+    { title: '답변 명확성', key: 'answerClarity' },
+  ],
+  speed: [
+    { title: '말하기 속도', key: 'speechSpeed' },
+  ],
+  fluency: [
+    { title: '추임새 빈도', key: 'fillerWords' },
+  ],
+  nonverbal: [
+    { title: '시선 처리', key: 'eyeContact' },
+  ],
+  persuasion: [
+    { title: '목소리 전달력', key: 'voiceVolume' },
+  ],
+}
+
 const getGradeInfo = (score) => {
   if (score >= 90) return { label: '우수', color: '#3281FF' }
   if (score >= 70) return { label: '양호', color: '#22C55E' }
@@ -21,29 +41,26 @@ const getGradeInfo = (score) => {
 
 export default function FeedbackDetail({ navigation, route }) {
 
-  const { competencyId, competencyBackendKeys, periodFeedbacks } = route.params
+  const { competencyId, periodFeedbacks } = route.params
 
   const title = competencyMap[competencyId] ?? '데이터 없음'
-  const backendKeys = competencyBackendKeys || [competencyId]
+  const subItems = COMPETENCY_DETAIL_CONFIG[competencyId] ?? []
+  const periods = periodFeedbacks || []
 
-  // 교시별 세부 데이터 생성
-  const detailItems = (periodFeedbacks || []).map((pf, i) => {
-    const scores = backendKeys.map(k => pf.scores?.[k] ?? 0)
-    const avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+  // 세부 항목별: 전 교시 평균 점수 + 가장 최근 교시 피드백 텍스트
+  const detailItems = subItems.map(cfg => {
+    const scores = periods.map(pf => pf.scores?.[cfg.key] ?? 0)
+    const avgScore = scores.length
+      ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+      : 0
 
-    const weakness = backendKeys
-      .map(k => pf.detailFeedback?.[k])
-      .filter(Boolean)
-      .join(' ') || pf.summaryFeedback || '-'
+    const lastWithDetail = [...periods].reverse().find(pf => pf.detailFeedback?.[cfg.key])
+    const weakness = lastWithDetail?.detailFeedback?.[cfg.key] || '-'
 
-    const improvement = pf.improvementTips?.[0] || '-'
+    const lastWithTips = [...periods].reverse().find(pf => pf.improvementTips?.length)
+    const improvement = lastWithTips?.improvementTips?.[0] || '-'
 
-    return {
-      title: `${i + 1}교시`,
-      score: avgScore,
-      weakness,
-      improvement,
-    }
+    return { title: cfg.title, score: avgScore, weakness, improvement }
   })
 
   return (

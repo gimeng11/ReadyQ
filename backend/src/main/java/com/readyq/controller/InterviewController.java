@@ -5,6 +5,7 @@ import com.readyq.model.interview.InterviewSession;
 import com.readyq.model.interview.PeriodFeedback;
 import com.readyq.service.InterviewService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -173,5 +174,18 @@ public class InterviewController {
 
         boolean pinned = interviewService.togglePin(auth.getName(), sessionId);
         return ResponseEntity.ok(java.util.Map.of("pinned", pinned));
+    }
+
+    /**
+     * GET /api/interview/{sessionId}/period/{num}/video
+     * 교시별 면접 영상 스트리밍 (면접 완료 후 3일간 제공)
+     */
+    @GetMapping("/{sessionId}/period/{num}/video")
+    public ResponseEntity<Resource> getPeriodVideo(
+            Authentication auth,
+            @PathVariable String sessionId,
+            @PathVariable int num) {
+
+        return interviewService.getPeriodVideo(auth.getName(), sessionId, num);
     }
 }

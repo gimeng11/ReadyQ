@@ -6,7 +6,6 @@ export const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FB',
     paddingTop: 100,
-    alignItems: 'center',
   },
   tabContainer: {
     flexDirection: 'row',
@@ -167,6 +166,70 @@ export const styles = StyleSheet.create({
   gradeText: {
     fontSize: 12,
     color: '#3281FF',
+  },
+  onePointCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 25,
+    marginBottom: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3281FF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  onePointHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  onePointLabel: {
+    fontSize: 13,
+    color: '#3281FF',
+    marginRight: 6,
+  },
+  onePointTitle: {
+    fontSize: 16,
+    color: '#111',
+  },
+  onePointScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  onePointCompName: {
+    fontSize: 15,
+    color: '#222',
+  },
+  onePointScoreRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  onePointScore: {
+    fontSize: 15,
+  },
+  onePointBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  onePointBadgeText: {
+    fontSize: 12,
+  },
+  onePointDivider: {
+    height: 1,
+    backgroundColor: '#f0f0f0',
+    marginBottom: 12,
+  },
+  onePointMessage: {
+    fontSize: 14,
+    color: '#444',
+    lineHeight: 22,
   },
   videoTabContainer: {
     padding: 20,

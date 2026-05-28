@@ -39,7 +39,9 @@
       "Bash(python3 *)",
       "Bash(python *)",
       "Bash(dir C:\\\\프로젝트\\\\ReadyQ\\\\frontend *)",
-      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\kimyo\\\\OneDrive\\\\문서\\\\GitHub\\\\ReadyQ\" -Directory)"
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\kimyo\\\\OneDrive\\\\문서\\\\GitHub\\\\ReadyQ\" -Directory)",
+      "Bash(grep -v \"^commit\\\\|^Author\\\\|^Date\\\\|^$\\\\|^    \")",
+      "Bash(xargs '-I{}' sh -c 'hash=$\\(echo {} | cut -d\" \" -f1\\); git show \"$hash\" 2>/dev/null | grep -l \"원포인트\\\\|one.point\\\\|OnePoint\\\\|onepoint\\\\|포인트 체크\\\\|pointCheck\" && echo \"Found in $hash: $\\(echo {} | cut -d\\\\\" \\\\\" -f2-\\)\"')"
     ]
   }
 }
