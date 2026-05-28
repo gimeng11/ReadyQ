@@ -137,6 +137,7 @@ public class InterviewService {
                 .map(p -> p.getParsedFeedback().getSummaryFeedback())
                 .orElse(null);
 
+        log.info("{}교시 피드백 생성 시작. sessionId={}", periodNum, sessionId);
         // 피드백 생성(영상 분석) + NEW_QUESTION 생성(텍스트) + STT 전사 병렬 실행
         long t = System.currentTimeMillis();
         CompletableFuture<GeminiInterviewService.PeriodAnalysisResult> feedbackFuture =
@@ -460,7 +461,13 @@ public class InterviewService {
     private Map<String, Integer> computeAverageCompetencyScores(List<PeriodFeedback> feedbacks) {
         Map<String, Integer> result = new HashMap<>();
         if (feedbacks.isEmpty()) return result;
-        String[] keys = {"logicStructure", "speechSpeed", "voiceVolume", "eyeContact", "fillerWords", "answerClarity"};
+        String[] keys = {
+            "answerStructure",
+            "speechSpeed", "voiceVolume",
+            "fillerWords", "speechBreak",
+            "eyeContact", "facialExpression", "posture",
+            "voiceTone", "intonation", "emphasis"
+        };
         for (String key : keys) {
             int sum = 0, count = 0;
             for (PeriodFeedback pf : feedbacks) {
@@ -517,8 +524,8 @@ public class InterviewService {
                     .collect(Collectors.toList());
 
             Map<String, Double> avgScores = new HashMap<>();
-            // answerClarity는 프론트 역량 UI에 미노출 — 5개만 사용
-            String[] keys = {"logicStructure", "speechSpeed", "voiceVolume", "eyeContact", "fillerWords"};
+            // 역량 그룹별 대표 키 1개씩 (5개 그룹)
+            String[] keys = {"answerStructure", "speechSpeed", "fillerWords", "eyeContact", "voiceTone"};
 
             if (!prevSessions.isEmpty()) {
                 for (String key : keys) {

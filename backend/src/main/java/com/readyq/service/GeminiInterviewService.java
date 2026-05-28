@@ -33,19 +33,28 @@ public class GeminiInterviewService {
     public record PeriodAnalysisResult(String feedbackJson, List<String> followUpQuestions) {}
 
     private static final List<String> COMPETENCY_KEYS = List.of(
-            "logicStructure", "speechSpeed", "voiceVolume", "eyeContact", "fillerWords", "answerClarity");
+            "answerStructure", "speechSpeed", "voiceVolume",
+            "fillerWords", "speechBreak",
+            "eyeContact", "facialExpression", "posture",
+            "voiceTone", "intonation", "emphasis");
 
-    private static final Map<String, String> COMPETENCY_KO = Map.of(
-            "logicStructure", "논리 구조력",
-            "speechSpeed",    "말하기 속도",
-            "voiceVolume",    "목소리 전달력",
-            "eyeContact",     "비언어적 태도",
-            "fillerWords",    "발화 유창성",
-            "answerClarity",  "답변 명확성");
+    private static final Map<String, String> COMPETENCY_KO = Map.ofEntries(
+            Map.entry("answerStructure",  "답변 구조"),
+            Map.entry("speechSpeed",      "말하기 속도"),
+            Map.entry("voiceVolume",      "음성 크기"),
+            Map.entry("fillerWords",      "추임새 빈도"),
+            Map.entry("speechBreak",      "말 끊김"),
+            Map.entry("eyeContact",       "시선처리"),
+            Map.entry("facialExpression", "표정"),
+            Map.entry("posture",          "자세"),
+            Map.entry("voiceTone",        "목소리 톤"),
+            Map.entry("intonation",       "억양"),
+            Map.entry("emphasis",         "강조"));
 
     private static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
     private static final String GEMINI_UPLOAD_URL = "https://generativelanguage.googleapis.com/upload/v1beta/files";
     private static final String GEMINI_MODEL = "gemini-2.5-flash";
+    private static final String GEMINI_FALLBACK_MODEL = "gemini-1.5-flash";
 
     @Value("${gemini.api.key}")
     private String apiKey;
@@ -283,38 +292,54 @@ public class GeminiInterviewService {
                 "%s\n" +
                 "위 영상에서 지원자의 답변을 분석하여 다음 항목을 0~100점으로 평가하세요.\n\n" +
 
+                "[answerStructure - 답변구조]\n" +
+                "주장-근거-사례(STAR) 구조, 질문 의도 적합성, 핵심 메시지 전달력을 종합 평가하세요.\n\n" +
+
                 "[speechSpeed - 말하기 속도]\n" +
                 "발화 속도를 SPM(분당 음절 수)으로 추정하여 평가하세요.\n" +
                 "- 이상적: 265~350 SPM / 허용: 250~410 SPM\n" +
                 "- 250 미만: 너무 느림 / 410 초과: 너무 빠름 → 감점\n\n" +
 
-                "[fillerWords - 추임새/말더듬]\n" +
-                "'음', '어', '그', '저' 등 추임새·말더듬 횟수를 평가하세요.\n" +
+                "[voiceVolume - 음성크기]\n" +
+                "음성 강도(dB)를 평가하세요.\n" +
+                "- 이상적: 67~72dB / 55dB 이하 → 감점 / 청취 명료도 고려\n\n" +
+
+                "[fillerWords - 추임새 빈도]\n" +
+                "'음', '어', '그', '저' 등 추임새 횟수를 평가하세요.\n" +
                 "- 1분 이상: 분당 5회 이하 양호 / 6~11회 주의 / 12회 이상 감점\n" +
                 "- 1분 미만: 5초당 1회 이상 감점\n\n" +
 
-                "[eyeContact - 비언어적 태도]\n" +
-                "눈맞춤·미소·고개끄덕임·자세를 평가하세요.\n" +
-                "중요도 순서: 말하고듣는태도 > 얼굴표정 > 시선처리 > 자세\n\n" +
+                "[speechBreak - 말끊김]\n" +
+                "부자연스러운 말 끊김·흐름 중단 횟수를 평가하세요.\n" +
+                "- 자연스러운 호흡 멈춤은 제외, 답변 흐름을 깨는 끊김만 감점\n\n" +
 
-                "[voiceVolume - 목소리 전달력]\n" +
-                "억양 변화폭·음도·강도를 종합 평가하세요.\n" +
-                "- 남성: 억양변화 90Hz 이상, 음도 111~130Hz, 강도 67~72dB\n" +
-                "- 여성: 억양변화 121Hz 이상, 음도 231~250Hz, 강도 67~72dB\n" +
-                "- 강도 55dB 이하 또는 단조로운 억양 → 감점\n\n" +
+                "[eyeContact - 시선처리]\n" +
+                "카메라(면접관) 응시 비율과 시선의 자연스러움을 평가하세요.\n" +
+                "- 시선 분산·아래 시선·불안한 눈 깜빡임 → 감점\n\n" +
 
-                "[logicStructure - 논리구조력]\n" +
-                "주장-근거-사례 구조 및 결론 비약 여부를 평가하세요.\n\n" +
+                "[facialExpression - 표정]\n" +
+                "자연스러운 미소, 표정 변화의 풍부함, 어색함 여부를 평가하세요.\n\n" +
 
-                "[answerClarity - 답변명확성]\n" +
-                "질문 의도 적합성 및 핵심 메시지 전달력을 평가하세요.\n\n" +
+                "[posture - 자세]\n" +
+                "바른 자세 유지, 고개끄덕임, 몸의 흔들림·기울임 여부를 평가하세요.\n\n" +
+
+                "[voiceTone - 목소리 톤]\n" +
+                "음도(Hz)와 목소리 안정감을 평가하세요.\n" +
+                "- 남성: 111~130Hz 이상적 / 여성: 231~250Hz 이상적\n\n" +
+
+                "[intonation - 억양]\n" +
+                "억양 변화폭을 평가하세요.\n" +
+                "- 남성: 90Hz 이상 / 여성: 121Hz 이상 이상적 / 단조로운 억양 → 감점\n\n" +
+
+                "[emphasis - 강조]\n" +
+                "핵심 단어·중요 구절에서 속도·음량 변화로 적절히 강조했는지 평가하세요.\n\n" +
 
                 "preamble 없이 순수 JSON만 반환 (마크다운 코드블록 없이):\n" +
                 "{\n" +
-                "  \"scores\": {\"logicStructure\":점수,\"speechSpeed\":점수,\"voiceVolume\":점수,\"eyeContact\":점수,\"fillerWords\":점수,\"answerClarity\":점수},\n" +
+                "  \"scores\": {\"answerStructure\":점수,\"speechSpeed\":점수,\"voiceVolume\":점수,\"fillerWords\":점수,\"speechBreak\":점수,\"eyeContact\":점수,\"facialExpression\":점수,\"posture\":점수,\"voiceTone\":점수,\"intonation\":점수,\"emphasis\":점수},\n" +
                 "  \"overallScore\": 종합점수,\n" +
                 "  \"summaryFeedback\": \"한 문장 요약\",\n" +
-                "  \"detailFeedback\": {\"logicStructure\":\"피드백\",\"speechSpeed\":\"SPM 수치 포함\",\"voiceVolume\":\"수치 포함\",\"eyeContact\":\"피드백\",\"fillerWords\":\"횟수 포함\",\"answerClarity\":\"피드백\"},\n" +
+                "  \"detailFeedback\": {\"answerStructure\":\"피드백\",\"speechSpeed\":\"SPM 수치 포함\",\"voiceVolume\":\"dB 수치 포함\",\"fillerWords\":\"횟수 포함\",\"speechBreak\":\"횟수 포함\",\"eyeContact\":\"피드백\",\"facialExpression\":\"피드백\",\"posture\":\"피드백\",\"voiceTone\":\"Hz 수치 포함\",\"intonation\":\"Hz 수치 포함\",\"emphasis\":\"피드백\"},\n" +
                 "  \"improvementTips\": [\"팁1\",\"팁2\",\"팁3\"]\n" +
                 "}",
                 interviewerDescription, question, coverLetterPart);
@@ -326,9 +351,9 @@ public class GeminiInterviewService {
             return extractJson(raw);
         } catch (Exception e) {
             log.warn("Gemini 피드백 생성 실패 — 기본 피드백 사용: {}", e.getMessage());
-            return "{\"scores\":{\"logicStructure\":70,\"speechSpeed\":70,\"voiceVolume\":70,\"eyeContact\":70,\"fillerWords\":70,\"answerClarity\":70}," +
+            return "{\"scores\":{\"answerStructure\":70,\"speechSpeed\":70,\"voiceVolume\":70,\"fillerWords\":70,\"speechBreak\":70,\"eyeContact\":70,\"facialExpression\":70,\"posture\":70,\"voiceTone\":70,\"intonation\":70,\"emphasis\":70}," +
                    "\"overallScore\":70,\"summaryFeedback\":\"AI 분석을 일시적으로 사용할 수 없습니다. 답변을 잘 하셨습니다.\"," +
-                   "\"detailFeedback\":{\"logicStructure\":\"분석 불가\",\"speechSpeed\":\"분석 불가\",\"voiceVolume\":\"분석 불가\",\"eyeContact\":\"분석 불가\",\"fillerWords\":\"분석 불가\",\"answerClarity\":\"분석 불가\"}," +
+                   "\"detailFeedback\":{\"answerStructure\":\"분석 불가\",\"speechSpeed\":\"분석 불가\",\"voiceVolume\":\"분석 불가\",\"fillerWords\":\"분석 불가\",\"speechBreak\":\"분석 불가\",\"eyeContact\":\"분석 불가\",\"facialExpression\":\"분석 불가\",\"posture\":\"분석 불가\",\"voiceTone\":\"분석 불가\",\"intonation\":\"분석 불가\",\"emphasis\":\"분석 불가\"}," +
                    "\"improvementTips\":[\"다음 답변에서도 자신감 있게 말해보세요.\",\"핵심을 먼저 말하는 두괄식 구조를 활용해 보세요.\",\"구체적인 사례를 들어 답변을 풍부하게 만들어 보세요.\"]}";
         }
     }
@@ -356,42 +381,58 @@ public class GeminiInterviewService {
                 "%s\n" +
                 "위 영상에서 지원자의 답변을 분석하여 다음 항목을 0~100점으로 평가하세요.\n\n" +
 
+                "[answerStructure - 답변구조]\n" +
+                "주장-근거-사례(STAR) 구조, 질문 의도 적합성, 핵심 메시지 전달력을 종합 평가하세요.\n\n" +
+
                 "[speechSpeed - 말하기 속도]\n" +
                 "발화 속도를 SPM(분당 음절 수)으로 추정하여 평가하세요.\n" +
                 "- 이상적: 265~350 SPM / 허용: 250~410 SPM\n" +
                 "- 250 미만: 너무 느림 / 410 초과: 너무 빠름 → 감점\n\n" +
 
-                "[fillerWords - 추임새/말더듬]\n" +
-                "'음', '어', '그', '저' 등 추임새·말더듬 횟수를 평가하세요.\n" +
+                "[voiceVolume - 음성크기]\n" +
+                "음성 강도(dB)를 평가하세요.\n" +
+                "- 이상적: 67~72dB / 55dB 이하 → 감점 / 청취 명료도 고려\n\n" +
+
+                "[fillerWords - 추임새 빈도]\n" +
+                "'음', '어', '그', '저' 등 추임새 횟수를 평가하세요.\n" +
                 "- 1분 이상: 분당 5회 이하 양호 / 6~11회 주의 / 12회 이상 감점\n" +
                 "- 1분 미만: 5초당 1회 이상 감점\n\n" +
 
-                "[eyeContact - 비언어적 태도]\n" +
-                "눈맞춤·미소·고개끄덕임·자세를 평가하세요.\n" +
-                "중요도 순서: 말하고듣는태도 > 얼굴표정 > 시선처리 > 자세\n\n" +
+                "[speechBreak - 말끊김]\n" +
+                "부자연스러운 말 끊김·흐름 중단 횟수를 평가하세요.\n" +
+                "- 자연스러운 호흡 멈춤은 제외, 답변 흐름을 깨는 끊김만 감점\n\n" +
 
-                "[voiceVolume - 목소리 전달력]\n" +
-                "억양 변화폭·음도·강도를 종합 평가하세요.\n" +
-                "- 남성: 억양변화 90Hz 이상, 음도 111~130Hz, 강도 67~72dB\n" +
-                "- 여성: 억양변화 121Hz 이상, 음도 231~250Hz, 강도 67~72dB\n" +
-                "- 강도 55dB 이하 또는 단조로운 억양 → 감점\n\n" +
+                "[eyeContact - 시선처리]\n" +
+                "카메라(면접관) 응시 비율과 시선의 자연스러움을 평가하세요.\n" +
+                "- 시선 분산·아래 시선·불안한 눈 깜빡임 → 감점\n\n" +
 
-                "[logicStructure - 논리구조력]\n" +
-                "주장-근거-사례 구조 및 결론 비약 여부를 평가하세요.\n\n" +
+                "[facialExpression - 표정]\n" +
+                "자연스러운 미소, 표정 변화의 풍부함, 어색함 여부를 평가하세요.\n\n" +
 
-                "[answerClarity - 답변명확성]\n" +
-                "질문 의도 적합성 및 핵심 메시지 전달력을 평가하세요.\n\n" +
+                "[posture - 자세]\n" +
+                "바른 자세 유지, 고개끄덕임, 몸의 흔들림·기울임 여부를 평가하세요.\n\n" +
+
+                "[voiceTone - 목소리 톤]\n" +
+                "음도(Hz)와 목소리 안정감을 평가하세요.\n" +
+                "- 남성: 111~130Hz 이상적 / 여성: 231~250Hz 이상적\n\n" +
+
+                "[intonation - 억양]\n" +
+                "억양 변화폭을 평가하세요.\n" +
+                "- 남성: 90Hz 이상 / 여성: 121Hz 이상 이상적 / 단조로운 억양 → 감점\n\n" +
+
+                "[emphasis - 강조]\n" +
+                "핵심 단어·중요 구절에서 속도·음량 변화로 적절히 강조했는지 평가하세요.\n\n" +
 
                 "또한 이 질문에 자연스럽게 이어질 꼬리질문 5개를 생성하세요. 꼬리질문 스타일: %s\n\n" +
 
                 "[출력 예시 — 아래 형식을 반드시 준수하세요]\n" +
                 "{\n" +
                 "  \"feedback\": {\n" +
-                "    \"scores\": {\"logicStructure\":72,\"speechSpeed\":65,\"voiceVolume\":78,\"eyeContact\":80,\"fillerWords\":60,\"answerClarity\":75},\n" +
+                "    \"scores\": {\"answerStructure\":72,\"speechSpeed\":65,\"voiceVolume\":78,\"fillerWords\":60,\"speechBreak\":75,\"eyeContact\":80,\"facialExpression\":70,\"posture\":68,\"voiceTone\":73,\"intonation\":66,\"emphasis\":71},\n" +
                 "    \"overallScore\": 72,\n" +
                 "    \"summaryFeedback\": \"논리적 흐름은 양호하나 말하기 속도가 다소 빠르고 추임새가 자주 나타났어요.\",\n" +
-                "    \"detailFeedback\": {\"logicStructure\":\"STAR 구조로 답변했으며 근거가 명확했어요.\",\"speechSpeed\":\"약 380 SPM으로 다소 빠른 편이에요.\",\"voiceVolume\":\"적절한 억양 변화를 보였어요.\",\"eyeContact\":\"카메라 시선 처리가 자연스러웠어요.\",\"fillerWords\":\"분당 약 8회 추임새가 나타났어요.\",\"answerClarity\":\"질문 의도에 맞게 핵심을 전달했어요.\"},\n" +
-                "    \"improvementTips\": [\"말하기 속도를 의식적으로 늦춰보세요.\",\"추임새 대신 짧은 침묵으로 생각 시간을 가져보세요.\",\"두괄식 구조로 결론을 먼저 말해보세요.\"]\n" +
+                "    \"detailFeedback\": {\"answerStructure\":\"STAR 구조로 답변했으며 근거가 명확했어요.\",\"speechSpeed\":\"약 380 SPM으로 다소 빠른 편이에요.\",\"voiceVolume\":\"약 65dB로 적절한 음량이에요.\",\"fillerWords\":\"분당 약 8회 추임새가 나타났어요.\",\"speechBreak\":\"답변 중 2회 부자연스러운 끊김이 있었어요.\",\"eyeContact\":\"카메라 시선 처리가 자연스러웠어요.\",\"facialExpression\":\"미소가 자연스러웠어요.\",\"posture\":\"전반적으로 바른 자세를 유지했어요.\",\"voiceTone\":\"안정적인 음도를 유지했어요.\",\"intonation\":\"억양 변화가 다소 단조로웠어요.\",\"emphasis\":\"핵심 단어 강조가 부족했어요.\"},\n" +
+                "    \"improvementTips\": [\"말하기 속도를 의식적으로 늦춰보세요.\",\"추임새 대신 짧은 침묵으로 생각 시간을 가져보세요.\",\"핵심 단어에서 목소리 크기나 속도를 변화시켜 강조해 보세요.\"]\n" +
                 "  },\n" +
                 "  \"followUpQuestions\": [\"그 경험에서 본인이 맡은 구체적인 역할은 무엇이었나요?\",\"그 과정에서 가장 어려웠던 점은 무엇인가요?\",\"그 결과로 팀에 어떤 영향이 있었나요?\",\"비슷한 상황이 또 생긴다면 어떻게 다르게 접근하시겠나요?\",\"그 경험을 통해 배운 점을 현재 직무에 어떻게 적용하고 있나요?\"]\n" +
                 "}\n\n" +
@@ -429,9 +470,9 @@ public class GeminiInterviewService {
                 }
             }
         }
-        String feedbackJson = "{\"scores\":{\"logicStructure\":70,\"speechSpeed\":70,\"voiceVolume\":70,\"eyeContact\":70,\"fillerWords\":70,\"answerClarity\":70}," +
+        String feedbackJson = "{\"scores\":{\"answerStructure\":70,\"speechSpeed\":70,\"voiceVolume\":70,\"fillerWords\":70,\"speechBreak\":70,\"eyeContact\":70,\"facialExpression\":70,\"posture\":70,\"voiceTone\":70,\"intonation\":70,\"emphasis\":70}," +
                 "\"overallScore\":70,\"summaryFeedback\":\"AI 분석을 일시적으로 사용할 수 없습니다. 답변을 잘 하셨습니다.\"," +
-                "\"detailFeedback\":{\"logicStructure\":\"분석 불가\",\"speechSpeed\":\"분석 불가\",\"voiceVolume\":\"분석 불가\",\"eyeContact\":\"분석 불가\",\"fillerWords\":\"분석 불가\",\"answerClarity\":\"분석 불가\"}," +
+                "\"detailFeedback\":{\"answerStructure\":\"분석 불가\",\"speechSpeed\":\"분석 불가\",\"voiceVolume\":\"분석 불가\",\"fillerWords\":\"분석 불가\",\"speechBreak\":\"분석 불가\",\"eyeContact\":\"분석 불가\",\"facialExpression\":\"분석 불가\",\"posture\":\"분석 불가\",\"voiceTone\":\"분석 불가\",\"intonation\":\"분석 불가\",\"emphasis\":\"분석 불가\"}," +
                 "\"improvementTips\":[\"다음 답변에서도 자신감 있게 말해보세요.\",\"핵심을 먼저 말하는 두괄식 구조를 활용해 보세요.\",\"구체적인 사례를 들어 답변을 풍부하게 만들어 보세요.\"]}";
         return new PeriodAnalysisResult(feedbackJson, defaultFollowUpQuestions());
     }
@@ -621,12 +662,17 @@ public class GeminiInterviewService {
                 "  \"improvementPoints\": [\"개선점1\", \"개선점2\", \"개선점3\"],\n" +
                 "  \"overallSummary\": \"전체 요약\",\n" +
                 "  \"competencyShortDescriptions\": {\n" +
-                "    \"logicStructure\": \"논리 구조 관련 짧은 설명\",\n" +
+                "    \"answerStructure\": \"답변 구조 관련 짧은 설명\",\n" +
                 "    \"speechSpeed\": \"말하기 속도 관련 짧은 설명\",\n" +
-                "    \"voiceVolume\": \"목소리 관련 짧은 설명\",\n" +
-                "    \"eyeContact\": \"비언어 표현 관련 짧은 설명\",\n" +
+                "    \"voiceVolume\": \"음성 크기 관련 짧은 설명\",\n" +
                 "    \"fillerWords\": \"추임새 관련 짧은 설명\",\n" +
-                "    \"answerClarity\": \"답변 명확성 관련 짧은 설명\"\n" +
+                "    \"speechBreak\": \"말끊김 관련 짧은 설명\",\n" +
+                "    \"eyeContact\": \"시선처리 관련 짧은 설명\",\n" +
+                "    \"facialExpression\": \"표정 관련 짧은 설명\",\n" +
+                "    \"posture\": \"자세 관련 짧은 설명\",\n" +
+                "    \"voiceTone\": \"목소리 톤 관련 짧은 설명\",\n" +
+                "    \"intonation\": \"억양 관련 짧은 설명\",\n" +
+                "    \"emphasis\": \"강조 관련 짧은 설명\"\n" +
                 "  }\n" +
                 "}",
                 feedbackList);
@@ -657,7 +703,7 @@ public class GeminiInterviewService {
                 "\"weakPoints\":[\"일부 답변에서 핵심이 다소 흐려졌어요.\"]," +
                 "\"improvementPoints\":[\"답변을 더 구체적으로 준비해 보세요.\",\"핵심 메시지를 먼저 전달하는 연습을 해보세요.\"]," +
                 "\"overallSummary\":\"AI 분석을 일시적으로 사용할 수 없습니다. 면접에 성실히 임해주셔서 감사합니다.\"," +
-                "\"competencyShortDescriptions\":{\"logicStructure\":\"분석 중이에요.\",\"speechSpeed\":\"분석 중이에요.\",\"voiceVolume\":\"분석 중이에요.\",\"eyeContact\":\"분석 중이에요.\",\"fillerWords\":\"분석 중이에요.\",\"answerClarity\":\"분석 중이에요.\"}}",
+                "\"competencyShortDescriptions\":{\"answerStructure\":\"분석 중이에요.\",\"speechSpeed\":\"분석 중이에요.\",\"voiceVolume\":\"분석 중이에요.\",\"fillerWords\":\"분석 중이에요.\",\"speechBreak\":\"분석 중이에요.\",\"eyeContact\":\"분석 중이에요.\",\"facialExpression\":\"분석 중이에요.\",\"posture\":\"분석 중이에요.\",\"voiceTone\":\"분석 중이에요.\",\"intonation\":\"분석 중이에요.\",\"emphasis\":\"분석 중이에요.\"}}",
                 avg, scoresJson);
         }
     }
@@ -672,31 +718,39 @@ public class GeminiInterviewService {
     }
 
     /**
-     * 텍스트만으로 Gemini 호출. 429/503 시 최대 3회 재시도.
+     * 텍스트만으로 Gemini 호출. 503 시 primary 2회 → fallback 모델 2회 재시도.
      */
     private String callGeminiText(String prompt) {
-        int maxAttempts = 4;
+        int primaryMax = 3;
+        int fallbackMax = 2;
+        int maxAttempts = primaryMax + fallbackMax;
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            String model = (attempt <= primaryMax) ? GEMINI_MODEL : GEMINI_FALLBACK_MODEL;
             try {
                 GenerateContentResponse response = geminiClient.models.generateContent(
-                        GEMINI_MODEL, prompt, (GenerateContentConfig) null);
+                        model, prompt, (GenerateContentConfig) null);
                 String text = response.text();
                 if (text == null || text.isBlank()) throw new RuntimeException("Gemini 응답 텍스트가 비어 있습니다.");
                 return text;
             } catch (ApiException e) {
                 int status = e.code();
                 String msg = e.getMessage() != null ? e.getMessage() : "";
-                boolean retryable = (status == 503) ||
-                        (status == 429 && !msg.contains("RESOURCE_EXHAUSTED") && !msg.contains("spending cap"));
+                boolean retryable = status != 404 && (
+                        (status == 503) ||
+                        (status == 429 && !msg.contains("RESOURCE_EXHAUSTED") && !msg.contains("spending cap")));
                 if (!retryable || attempt == maxAttempts) {
-                    log.error("Gemini 텍스트 호출 최종 실패 (HTTP {}): {}", status, msg);
+                    log.error("Gemini 텍스트 호출 최종 실패 (HTTP {}, model={}): {}", status, model, msg);
                     throw new RuntimeException("Gemini API 호출에 실패했습니다.", e);
                 }
-                log.warn("Gemini {} — 재시도 ({}/{})", status, attempt, maxAttempts - 1);
+                if (attempt == primaryMax) {
+                    log.warn("Gemini {} — fallback 모델({})로 전환", status, GEMINI_FALLBACK_MODEL);
+                } else {
+                    log.warn("Gemini {} ({}) — 재시도 ({}/{})", status, model, attempt, primaryMax - 1);
+                }
                 sleepForRetry(attempt);
             } catch (Exception e) {
                 if (attempt == maxAttempts) {
-                    log.error("Gemini 텍스트 호출 실패: {}", e.getMessage());
+                    log.error("Gemini 텍스트 호출 실패 (model={}): {}", model, e.getMessage());
                     throw new RuntimeException("Gemini API 호출에 실패했습니다.", e);
                 }
                 log.warn("Gemini 호출 오류 — 재시도 ({}/{}): {}", attempt, maxAttempts - 1, e.getMessage());
@@ -707,7 +761,8 @@ public class GeminiInterviewService {
     }
 
     /**
-     * 영상 fileUri를 포함하여 Gemini 호출. 429/503 시 최대 3회 재시도.
+     * 영상 fileUri를 포함하여 Gemini 호출.
+     * 영상 분석은 GEMINI_MODEL(gemini-2.5-flash)만 지원 — fallback 없이 최대 4회 재시도.
      */
     private String callGeminiWithVideo(String fileUri, String mimeType, String prompt) {
         int maxAttempts = 4;
@@ -725,8 +780,9 @@ public class GeminiInterviewService {
             } catch (ApiException e) {
                 int status = e.code();
                 String msg = e.getMessage() != null ? e.getMessage() : "";
-                boolean retryable = (status == 503) ||
-                        (status == 429 && !msg.contains("RESOURCE_EXHAUSTED") && !msg.contains("spending cap"));
+                boolean retryable = status != 404 && (
+                        (status == 503) ||
+                        (status == 429 && !msg.contains("RESOURCE_EXHAUSTED") && !msg.contains("spending cap")));
                 if (!retryable || attempt == maxAttempts) {
                     log.error("Gemini 영상 포함 호출 최종 실패 (HTTP {}): {}", status, msg);
                     throw new RuntimeException("Gemini API 호출에 실패했습니다.", e);
@@ -764,11 +820,13 @@ public class GeminiInterviewService {
     private void validatePeriodAnalysisJson(String json) throws Exception {
         JsonNode root = objectMapper.readTree(json);
 
+        // feedback 노드 필수
         JsonNode feedback = root.path("feedback");
         if (feedback.isMissingNode() || feedback.isNull()) {
             throw new IllegalStateException("JSON 스키마 오류: 'feedback' 필드가 없습니다.");
         }
 
+        // scores — 11개 키 모두 숫자여야 함 (핵심 지표)
         JsonNode scores = feedback.path("scores");
         for (String key : COMPETENCY_KEYS) {
             JsonNode val = scores.path(key);
@@ -786,13 +844,8 @@ public class GeminiInterviewService {
             throw new IllegalStateException("JSON 스키마 오류: 'summaryFeedback' 비어 있음");
         }
 
-        JsonNode detailFeedback = feedback.path("detailFeedback");
-        for (String key : COMPETENCY_KEYS) {
-            if (detailFeedback.path(key).asText("").isBlank()) {
-                throw new IllegalStateException("JSON 스키마 오류: detailFeedback." + key + " 비어 있음");
-            }
-        }
-
+        // detailFeedback — 일부 키 누락 시 재시도 대신 조용히 통과 (scores가 더 중요)
+        // improvementTips 배열 필수
         JsonNode tips = feedback.path("improvementTips");
         if (!tips.isArray() || tips.isEmpty()) {
             throw new IllegalStateException("JSON 스키마 오류: 'improvementTips' 배열이 비어 있음");

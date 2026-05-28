@@ -30,7 +30,7 @@ export default function InterviewEnd({ navigation, route }) {
   if (completing) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#3281FF" />
+        <ActivityIndicator size="large" color="#281FF" />
         <CustomText style={{ marginTop: 16, color: '#666' }}>피드백을 생성하고 있어요...</CustomText>
       </View>
     )

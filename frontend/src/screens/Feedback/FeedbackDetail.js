@@ -14,20 +14,25 @@ const competencyMap = {
 // 역량별 세부 항목 → 백엔드 점수 키 매핑
 const COMPETENCY_DETAIL_CONFIG = {
   logic: [
-    { title: '논리 구조', key: 'logicStructure' },
-    { title: '답변 명확성', key: 'answerClarity' },
+    { title: '답변 구조', key: 'answerStructure' },
   ],
   speed: [
     { title: '말하기 속도', key: 'speechSpeed' },
+    { title: '음성 크기', key: 'voiceVolume' },
   ],
   fluency: [
     { title: '추임새 빈도', key: 'fillerWords' },
+    { title: '말 끊김', key: 'speechBreak' },
   ],
   nonverbal: [
-    { title: '시선 처리', key: 'eyeContact' },
+    { title: '시선처리', key: 'eyeContact' },
+    { title: '표정', key: 'facialExpression' },
+    { title: '자세', key: 'posture' },
   ],
   persuasion: [
-    { title: '목소리 전달력', key: 'voiceVolume' },
+    { title: '목소리 톤', key: 'voiceTone' },
+    { title: '억양', key: 'intonation' },
+    { title: '강조', key: 'emphasis' },
   ],
 }
 

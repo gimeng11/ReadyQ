@@ -11,12 +11,17 @@ import { BASE_URL } from '../../api/client'
 
 // 백엔드 역량 세부 키 → 역량 그룹 매핑
 const COMPETENCY_KEY_MAP = {
-  logicStructure: { id: 'logic', name: '논리 구조력' },
-  answerClarity:  { id: 'logic', name: '논리 구조력' },
-  speechSpeed:    { id: 'speed', name: '속도 조절력' },
-  fillerWords:    { id: 'fluency', name: '발화 유창성' },
-  eyeContact:     { id: 'nonverbal', name: '비언어 표현력' },
-  voiceVolume:    { id: 'persuasion', name: '전달 설득력' },
+  answerStructure:  { id: 'logic',     name: '논리 구조력' },
+  speechSpeed:      { id: 'speed',     name: '속도 조절력' },
+  voiceVolume:      { id: 'speed',     name: '속도 조절력' },
+  fillerWords:      { id: 'fluency',   name: '발화 유창성' },
+  speechBreak:      { id: 'fluency',   name: '발화 유창성' },
+  eyeContact:       { id: 'nonverbal', name: '비언어 표현력' },
+  facialExpression: { id: 'nonverbal', name: '비언어 표현력' },
+  posture:          { id: 'nonverbal', name: '비언어 표현력' },
+  voiceTone:        { id: 'persuasion', name: '전달 설득력' },
+  intonation:       { id: 'persuasion', name: '전달 설득력' },
+  emphasis:         { id: 'persuasion', name: '전달 설득력' },
 }
 
 // 백엔드 역량 키 → 프론트엔드 역량 매핑
@@ -24,31 +29,31 @@ const COMPETENCY_CONFIG = [
   {
     id: 'logic',
     title: '논리 구조력',
-    backendKeys: ['logicStructure', 'answerClarity'],
+    backendKeys: ['answerStructure'],
     icon: require('../../../assets/icons/logic.png'),
   },
   {
     id: 'speed',
     title: '속도 조절력',
-    backendKeys: ['speechSpeed'],
+    backendKeys: ['speechSpeed', 'voiceVolume'],
     icon: require('../../../assets/icons/time.png'),
   },
   {
     id: 'fluency',
     title: '발화 유창성',
-    backendKeys: ['fillerWords'],
+    backendKeys: ['fillerWords', 'speechBreak'],
     icon: require('../../../assets/icons/mouth.png'),
   },
   {
     id: 'nonverbal',
     title: '비언어 표현력',
-    backendKeys: ['eyeContact'],
+    backendKeys: ['eyeContact', 'facialExpression', 'posture'],
     icon: require('../../../assets/icons/person.png'),
   },
   {
     id: 'persuasion',
     title: '전달 설득력',
-    backendKeys: ['voiceVolume'],
+    backendKeys: ['voiceTone', 'intonation', 'emphasis'],
     icon: require('../../../assets/icons/mic.png'),
   },
 ]

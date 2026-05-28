@@ -14,7 +14,7 @@ import java.util.Map;
 @AllArgsConstructor
 public class PeriodFeedback {
 
-    // 평가 항목별 점수 (logicStructure, speechSpeed, voiceVolume, eyeContact, fillerWords, answerClarity)
+    // 평가 항목별 점수 (answerStructure, speechSpeed, voiceVolume, fillerWords, speechBreak, eyeContact, facialExpression, posture, voiceTone, intonation, emphasis)
     private Map<String, Integer> scores;
 
     private int overallScore;
