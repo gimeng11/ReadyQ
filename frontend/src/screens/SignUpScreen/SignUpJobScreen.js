@@ -1,11 +1,12 @@
-import { View, TouchableOpacity, ScrollView } from 'react-native'
+import { View, TouchableOpacity, ScrollView, Alert } from 'react-native'
 import { useState } from 'react'
 import { styles } from './SignUpJobStyles'
 import CustomText from '../../components/CustomText'
 import CustomButton from '../../components/CustomButton'
 import Header from '../../components/Header'
 
-export default function SignUpJobScreen({ navigation }) {
+export default function SignUpJobScreen({ navigation, route }) {
+  const { formData } = route.params
   const [selectedMain, setSelectedMain] = useState(null)
   const [selectedSub, setSelectedSub] = useState(null)
 
@@ -177,7 +178,14 @@ export default function SignUpJobScreen({ navigation }) {
             title="다음"
             type="secondary"
             style={styles.button}
-            onPress={() => navigation.navigate('SignUpCareer')}
+            onPress={() => {
+              if (!selectedSub) {
+                Alert.alert('알림', '직무를 선택해주세요')
+                return
+              }
+              const jobTitle = `${selectedMain} > ${selectedSub}`
+              navigation.navigate('SignUpCareer', { formData: { ...formData, jobTitle } })
+            }}
           />
 
         </View>

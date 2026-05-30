@@ -43,13 +43,19 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
             name = (String) response.get("name");
         } else if (provider.equals("kakao")) {
             // 카카오
-            providerId = String.valueOf(oAuth2User.getAttributes().get("id"));
+            Object id = oAuth2User.getAttributes().get("id");
+            providerId = String.valueOf(id);
+            System.out.println("[OAuth2UserService] Kakao ID: " + providerId);
 
             Map<String, Object> kakaoAccount = (Map<String, Object>) oAuth2User.getAttributes().get("kakao_account");
-            Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
-
-            email = (String) kakaoAccount.get("email");
-            name = (String) profile.get("nickname");
+            if (kakaoAccount != null) {
+                email = (String) kakaoAccount.get("email");
+                Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
+                if (profile != null) {
+                    name = (String) profile.get("nickname");
+                }
+            }
+            System.out.println("[OAuth2UserService] Kakao email: " + email + ", name: " + name);
         }
 
         // provider + providerId  DB에 해당 플랫폼과 고유 식별자로 가입된 유저가 있는지 확인

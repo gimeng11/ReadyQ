@@ -11,6 +11,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -24,11 +25,15 @@ public class SecurityConfig {
     private final OAuth2UserService oAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
+    //쿠키 필터
+    private final OAuthRedirectCookieFilter oAuthRedirectCookieFilter;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .addFilterBefore(oAuthRedirectCookieFilter, OAuth2AuthorizationRequestRedirectFilter.class) //소셜로그인 쿠키추가
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/api/auth/login",
@@ -43,6 +48,8 @@ public class SecurityConfig {
                     "/login/oauth2/code/naver",
                     "/login/oauth2/code/kakao"
                 ).permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/boards/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/boards/*/comments").permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex

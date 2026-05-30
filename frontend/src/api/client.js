@@ -11,10 +11,12 @@ const getBaseUrl = () => {
     return `http://${host}:8080`
   }
   console.log('[API] host 감지 실패 → fallback 사용')
+
+
   return 'http://10.0.2.2:8080'
 }
-
-export const BASE_URL = getBaseUrl()
+//소셜로그인 expo주소 추가
+export const BASE_URL = process.env.EXPO_PUBLIC_BASE_URL || getBaseUrl();
 console.log('[API] BASE_URL:', BASE_URL)
 
 export async function apiCall(endpoint, options = {}) {

@@ -187,5 +187,25 @@ public class InterviewController {
             @PathVariable int num) {
 
         return interviewService.getPeriodVideo(auth.getName(), sessionId, num);
+
+     * GET /api/interview/archive
+     * 면접 아카이브 목록 조회 (완료된 세션만)
+     */
+    @GetMapping("/archive")
+    public ResponseEntity<List<InterviewSession>> getArchiveList(Authentication auth) {
+        List<InterviewSession> archive = interviewService.getCompletedSessions(auth.getName());
+        return ResponseEntity.ok(archive);
+    }
+
+    /**
+     * GET /api/interview/archive/{sessionId}
+     * 면접 아카이브 상세 조회
+     */
+    @GetMapping("/archive/{sessionId}")
+    public ResponseEntity<InterviewSession> getArchiveDetail(
+            Authentication auth,
+            @PathVariable String sessionId) {
+        InterviewSession session = interviewService.getSessionDetail(auth.getName(), sessionId);
+        return ResponseEntity.ok(session);
     }
 }

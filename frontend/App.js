@@ -1,6 +1,8 @@
 import { useFonts } from 'expo-font'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { PostProvider } from './src/context/PostContext';
+import { UserProvider } from './src/context/UserContext';
 
 import StartScreen from './src/screens/StartScreen/StartScreen'
 import LoginScreen from './src/screens/LoginScreen/LoginScreen'
@@ -22,9 +24,17 @@ import ArchiveScreen from './src/screens/Archive/ArchiveScreen'
 import CommunityScreen from './src/screens/Community/CommunityScreen'
 import ProfileScreen from './src/screens/Profile/ProfileScreen'
 import ScheduleScreen from './src/screens/Schedule/ScheduleScreen'
+import PostSelectScreen from './src/screens/Community/PostSelectScreen'
+import PostWriteScreen from './src/screens/Community/PostWriteScreen'
+import PostDetailScreen from './src/screens/Community/PostDetailScreen'
+import ScrapScreen from './src/screens/Community/ScrapScreen'
 import FeedbackScreen from './src/screens/Feedback/FeedbackScreen'
 import FeedbackDetail from './src/screens/Feedback/FeedbackDetail'
+
 import FeedbackComparison from './src/screens/Feedback/FeedbackComparison'
+import PostListScreen from './src/screens/Community/PostListScreen'
+import ProfileEditScreen from './src/screens/Profile/ProfileEditScreen'
+
 
 const Stack = createNativeStackNavigator()
 
@@ -39,7 +49,8 @@ export default function App() {
     return null
   }
 
-  return (
+  return ( <UserProvider>
+    <PostProvider>
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Start" component={StartScreen} />
@@ -62,10 +73,19 @@ export default function App() {
         <Stack.Screen name="Community" component={CommunityScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Schedule" component={ScheduleScreen} />
+        <Stack.Screen name="PostSelect" component={PostSelectScreen} />
+        <Stack.Screen name="PostWrite" component={PostWriteScreen} />
+        <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+        <Stack.Screen name="Scrap" component={ScrapScreen} />
         <Stack.Screen name="Feedback" component={FeedbackScreen} />
         <Stack.Screen name="FeedbackDetail" component={FeedbackDetail} />
+
         <Stack.Screen name="FeedbackComparison" component={FeedbackComparison} />
+        <Stack.Screen name="PostList" component={PostListScreen} />
+        <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
       </Stack.Navigator>
     </NavigationContainer>
+    </PostProvider>
+  </UserProvider>
   )
 }

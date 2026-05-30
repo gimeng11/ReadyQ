@@ -4,7 +4,7 @@ import { styles } from './SignUpStyles'
 import CustomText from '../../components/CustomText'
 import CustomButton from '../../components/CustomButton'
 import Header from '../../components/Header'
-import { sendSms, verifySms, signUp } from '../../api/auth'
+import { sendSms, verifySms } from '../../api/auth'
 
 export default function SignUpScreen({ navigation }) {
   const [form, setForm] = useState({
@@ -62,10 +62,7 @@ export default function SignUpScreen({ navigation }) {
         }
         setSmsVerified(true)
       }
-      await signUp({ nickname, email, username, password, phone })
-      Alert.alert('완료', '회원가입이 완료되었습니다', [
-        { text: '확인', onPress: () => navigation.navigate('Login') },
-      ])
+      navigation.navigate('SignUpJob', { formData: { nickname, email, username, password, phone } })
     } catch (e) {
       Alert.alert('오류', e.message)
     } finally {

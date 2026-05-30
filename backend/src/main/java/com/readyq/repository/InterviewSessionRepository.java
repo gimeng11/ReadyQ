@@ -17,6 +17,10 @@ public interface InterviewSessionRepository extends MongoRepository<InterviewSes
 
     List<InterviewSession> findByUserIdAndStatus(String userId, InterviewStatus status);
 
+
     // 3일 경과 완료 세션 조회 (영상 정리용)
     List<InterviewSession> findByStatusAndCompletedAtBefore(InterviewStatus status, LocalDateTime cutoff);
+
+    List<InterviewSession> findByUserIdAndStatusOrderByCreatedAtDesc(String userId, InterviewStatus status);
+
 }

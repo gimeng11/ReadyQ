@@ -182,6 +182,33 @@ tabItem: {
     marginTop: 12,
   },
 
+  /* ── 작성자 행 ── */
+  authorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  authorName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#00041C',
+  },
+
+  /* ── 경력 뱃지 ── */
+  careerBadge: {
+    backgroundColor: '#EEF4FF',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginRight: 4,
+  },
+  careerBadgeText: {
+    fontSize: 11,
+    color: '#3281FF',
+    fontWeight: '600',
+  },
+
   /* ── FAB ── */
   postButton: {
     position: 'absolute',
