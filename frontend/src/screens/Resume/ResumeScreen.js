@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { styles } from './ResumeStyles'
 import CustomText from '../../components/CustomText'
 import Header from '../../components/Header'
-import { reviewCoverLetter } from '../../api/coverLetter'
+import { reviewCoverLetter, saveCoverLetter } from '../../api/coverLetter'
 
 const MAX_CHARS = 3000
 
@@ -15,6 +15,7 @@ export default function ResumeScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('ai')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
+  const [saving, setSaving] = useState(false)
 
   const handleReview = async () => {
     if (text.trim().length < 50) {
@@ -31,6 +32,31 @@ export default function ResumeScreen({ navigation }) {
       Alert.alert('오류', '분석에 실패했어요. 잠시 후 다시 시도해 주세요.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    if (!result) return
+    setSaving(true)
+    try {
+      const trimmed = text.trim()
+      const title = trimmed.replace(/\n/g, ' ').slice(0, 30) + (trimmed.length > 30 ? '...' : '')
+      await saveCoverLetter({
+        title,
+        text: trimmed,
+        overallScore: result.overallScore,
+        overallComment: result.overallComment,
+        strengths: result.strengths,
+        improvements: result.improvements,
+        spellerErrors: result.spellerErrors,
+        spellerAvailable: result.spellerAvailable,
+        spellerChecked: result.spellerChecked,
+      })
+      Alert.alert('저장 완료', '자소서 첨삭이 저장되었어요.')
+    } catch (e) {
+      Alert.alert('오류', '저장에 실패했어요.')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -100,6 +126,20 @@ export default function ResumeScreen({ navigation }) {
           {/* 결과 영역 */}
           {result && (
             <View style={styles.resultContainer}>
+              <TouchableOpacity
+                style={[styles.saveButton, saving && styles.reviewButtonDisabled]}
+                onPress={handleSave}
+                disabled={saving}
+                activeOpacity={0.8}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <CustomText weight="bold" style={styles.reviewButtonText}>
+                    저장하기
+                  </CustomText>
+                )}
+              </TouchableOpacity>
               {/* 점수 카드 */}
               <View style={styles.scoreCard}>
                 <CustomText weight="bold" style={styles.scoreLabel}>전체 점수</CustomText>

@@ -538,20 +538,6 @@ public class GeminiInterviewService {
     // 5. 새로운 질문 생성 (다른 질문 선택 시)
     // ───────────────────────────────────────────────
 
-    // 랜덤 질문 다양성을 위한 토픽 풀 (호출마다 다른 토픽 선택)
-    private static final List<String> QUESTION_TOPICS = List.of(
-        "성장 경험과 자기개발",
-        "실패·갈등 극복과 회복탄력성",
-        "리더십·팔로워십 경험",
-        "데이터·수치 기반 의사결정 경험",
-        "고객·사용자 중심 사고",
-        "창의적 문제 해결 경험",
-        "협업·커뮤니케이션 스타일",
-        "목표 설정과 우선순위 관리",
-        "변화·불확실성 대응 경험",
-        "직무 전문성과 최신 트렌드 인식"
-    );
-
     /**
      * 이전 질문들과 겹치지 않는 새로운 회사/직무 관련 질문을 생성한다.
      */
@@ -559,7 +545,7 @@ public class GeminiInterviewService {
                                       String targetCompany,
                                       String targetJob,
                                       List<String> previousQuestions) {
-        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, null, null, null);
+        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, null, null, null, null);
     }
 
     public String generateNewQuestion(String coverLetter,
@@ -567,7 +553,7 @@ public class GeminiInterviewService {
                                       String targetJob,
                                       List<String> previousQuestions,
                                       String introContext) {
-        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, introContext, null, null);
+        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, introContext, null, null, null);
     }
 
     public String generateNewQuestion(String coverLetter,
@@ -576,7 +562,7 @@ public class GeminiInterviewService {
                                       List<String> previousQuestions,
                                       String introContext,
                                       String currentQuestion) {
-        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, introContext, currentQuestion, null);
+        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, introContext, currentQuestion, null, null);
     }
 
     public String generateNewQuestion(String coverLetter,
@@ -586,31 +572,46 @@ public class GeminiInterviewService {
                                       String introContext,
                                       String currentQuestion,
                                       InterviewerType interviewerType) {
+        return generateNewQuestion(coverLetter, targetCompany, targetJob, previousQuestions, introContext, currentQuestion, interviewerType, null);
+    }
+
+    /**
+     * 이전 교시 Q&A 전사본을 바탕으로 면접 흐름에 맞는 새 질문을 생성한다.
+     *
+     * @param prevQnA 이전 교시별 "Q{n}: 질문\nA: 전사본" 문자열 목록
+     */
+    public String generateNewQuestion(String coverLetter,
+                                      String targetCompany,
+                                      String targetJob,
+                                      List<String> previousQuestions,
+                                      String introContext,
+                                      String currentQuestion,
+                                      InterviewerType interviewerType,
+                                      List<String> prevQnA) {
         String prevQuestionsStr = previousQuestions.isEmpty() ? "없음" : "- " + String.join("\n- ", previousQuestions);
         String tc = (targetCompany != null && !targetCompany.isBlank()) ? targetCompany : "지원 기업";
         String tj = (targetJob != null && !targetJob.isBlank()) ? targetJob : "지원 직무";
-
-        // 호출마다 다른 토픽 선택 (현재 시각 기반 → 반복 방지)
-        int topicIdx = (int) (System.currentTimeMillis() % QUESTION_TOPICS.size());
-        String chosenTopic = QUESTION_TOPICS.get(topicIdx);
-
-        String contextPart = "";
-        if (introContext != null && !introContext.isBlank())
-            contextPart += "지원자 자기소개 요약: " + introContext + "\n";
-        if (currentQuestion != null && !currentQuestion.isBlank())
-            contextPart += "방금 답변한 질문: " + currentQuestion + "\n";
-
         String questionStyle = getInterviewerQuestionStyle(interviewerType);
+
+        // 이전 교시 대화 내용 구성
+        String qnaPart = "";
+        if (prevQnA != null && !prevQnA.isEmpty()) {
+            qnaPart = "지금까지의 면접 대화 내용:\n" + String.join("\n\n", prevQnA) + "\n\n";
+        } else if (introContext != null && !introContext.isBlank()) {
+            qnaPart = "지원자 자기소개 요약: " + introContext + "\n\n";
+        }
+
         String prompt = String.format(
-                "%s\n\n" +
-                "%s 회사의 %s 직무 면접 질문 1개를 생성하세요.\n\n" +
+                "%s 회사의 %s 직무 면접을 진행 중입니다.\n\n" +
+                "%s" +
+                "위 면접 내용을 바탕으로, 지원자가 아직 다루지 않은 역량이나 경험을 확인할 수 있는 " +
+                "새로운 면접 질문 1개를 생성하세요.\n\n" +
                 "반드시 다음 조건을 모두 충족하세요:\n" +
-                "1. 이번 질문의 핵심 주제: [%s] — 이 주제를 중심으로 질문을 만드세요.\n" +
-                "2. 이미 사용한 질문과 주제가 중복되지 않아야 합니다:\n%s\n" +
-                "3. 방금 답변한 질문과는 완전히 다른 각도의 질문이어야 합니다.\n" +
-                "4. %s\n\n" +
+                "1. 이미 사용한 질문들과 주제가 겹치지 않아야 합니다:\n%s\n" +
+                "2. 지금까지의 답변에서 드러난 지원자의 경험·역량과 자연스럽게 이어지는 질문이어야 합니다.\n" +
+                "3. %s\n\n" +
                 "질문 한 문장만 반환하세요. 번호·설명·인사말 없이 질문 그대로만.",
-                contextPart, tc, tj, chosenTopic, prevQuestionsStr, questionStyle);
+                tc, tj, qnaPart, prevQuestionsStr, questionStyle);
 
         try {
             return callGeminiText(prompt).trim();

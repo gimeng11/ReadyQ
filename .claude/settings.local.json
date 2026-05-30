@@ -41,7 +41,9 @@
       "Bash(dir C:\\\\프로젝트\\\\ReadyQ\\\\frontend *)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\kimyo\\\\OneDrive\\\\문서\\\\GitHub\\\\ReadyQ\" -Directory)",
       "Bash(grep -v \"^commit\\\\|^Author\\\\|^Date\\\\|^$\\\\|^    \")",
-      "Bash(xargs '-I{}' sh -c 'hash=$\\(echo {} | cut -d\" \" -f1\\); git show \"$hash\" 2>/dev/null | grep -l \"원포인트\\\\|one.point\\\\|OnePoint\\\\|onepoint\\\\|포인트 체크\\\\|pointCheck\" && echo \"Found in $hash: $\\(echo {} | cut -d\\\\\" \\\\\" -f2-\\)\"')"
+      "Bash(xargs '-I{}' sh -c 'hash=$\\(echo {} | cut -d\" \" -f1\\); git show \"$hash\" 2>/dev/null | grep -l \"원포인트\\\\|one.point\\\\|OnePoint\\\\|onepoint\\\\|포인트 체크\\\\|pointCheck\" && echo \"Found in $hash: $\\(echo {} | cut -d\\\\\" \\\\\" -f2-\\)\"')",
+      "Bash(cat \"C:\\\\Users\\\\baba0\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C-------ReadyQ\\\\d26d96b1-d7b5-4d50-83c3-fb6fc4867bba\\\\tasks\\\\bt337s6h4.output\")",
+      "Bash(cat \"C:\\\\Users\\\\baba0\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C-------ReadyQ\\\\d26d96b1-d7b5-4d50-83c3-fb6fc4867bba\\\\tasks\\\\ba3jx74s6.output\")"
     ]
   }
 }

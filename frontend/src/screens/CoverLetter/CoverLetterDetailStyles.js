@@ -10,72 +10,23 @@ export const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 60,
   },
-
-  // 입력
-  inputCard: {
+  originalCard: {
     backgroundColor: '#fff',
     borderRadius: 14,
     padding: 16,
+    marginBottom: 16,
     borderWidth: 1.2,
     borderColor: '#E2E8F0',
-    marginBottom: 14,
   },
-  inputHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  originalLabel: {
+    fontSize: 13,
+    color: '#64748B',
     marginBottom: 10,
   },
-  inputLabel: {
+  originalText: {
     fontSize: 14,
     color: '#1E293B',
-  },
-  charCount: {
-    fontSize: 12,
-    color: '#94A3B8',
-  },
-  textInput: {
-    fontSize: 14,
-    color: '#1E293B',
-    minHeight: 200,
     lineHeight: 22,
-    fontFamily: 'PretendardRegular',
-  },
-
-  // 버튼
-  reviewButton: {
-    backgroundColor: '#3281FF',
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  reviewButtonDisabled: {
-    backgroundColor: '#93C5FD',
-  },
-  reviewButtonText: {
-    color: '#fff',
-    fontSize: 15,
-  },
-  loadingHint: {
-    textAlign: 'center',
-    fontSize: 13,
-    color: '#94A3B8',
-    marginBottom: 16,
-  },
-
-  // 저장 버튼
-  saveButton: {
-    backgroundColor: '#22C55E',
-    borderRadius: 12,
-    paddingVertical: 13,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-
-  // 결과
-  resultContainer: {
-    marginTop: 16,
   },
   scoreCard: {
     backgroundColor: '#fff',
@@ -112,8 +63,6 @@ export const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: 'center',
   },
-
-  // 탭
   tabRow: {
     flexDirection: 'row',
     backgroundColor: '#F1F5F9',
@@ -141,8 +90,6 @@ export const styles = StyleSheet.create({
   tabTextActive: {
     color: '#1E293B',
   },
-
-  // 섹션
   section: {
     marginBottom: 16,
   },
@@ -168,8 +115,6 @@ export const styles = StyleSheet.create({
     color: '#334155',
     lineHeight: 22,
   },
-
-  // 개선 제안 카드
   improvementCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -217,8 +162,6 @@ export const styles = StyleSheet.create({
     marginTop: 8,
     lineHeight: 18,
   },
-
-  // 맞춤법
   emptySpell: {
     backgroundColor: '#fff',
     borderRadius: 12,

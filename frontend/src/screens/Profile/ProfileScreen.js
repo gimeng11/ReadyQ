@@ -17,7 +17,7 @@ const MENU_SECTIONS = [
     title: '면접',
     items: [
       { icon: require('../../../assets/icons/thumbs.png'), label: '면접 아카이브', screen: 'Archive', params: null },
-      { icon: require('../../../assets/icons/save.png'), label: '자소서 첨삭', screen: null, params: null },
+      { icon: require('../../../assets/icons/save.png'), label: '자소서 첨삭', screen: 'CoverLetterArchive', params: null },
     ],
   },
   {

@@ -187,7 +187,9 @@ public class InterviewController {
             @PathVariable int num) {
 
         return interviewService.getPeriodVideo(auth.getName(), sessionId, num);
+    }
 
+    /**
      * GET /api/interview/archive
      * 면접 아카이브 목록 조회 (완료된 세션만)
      */

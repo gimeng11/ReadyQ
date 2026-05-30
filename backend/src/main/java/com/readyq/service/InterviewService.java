@@ -129,55 +129,66 @@ public class InterviewService {
         final InterviewerType iType    = session.getInterviewerType();
         final String targetCompany     = session.getTargetCompany();
         final String targetJob         = session.getTargetJob();
-        final List<String> prevQuestions = session.getPeriods().stream()
+        final List<String> allPrevQuestions = session.getPeriods().stream()
                 .map(PeriodResult::getQuestion).collect(Collectors.toList());
-        final String introSummary = session.getPeriods().stream()
-                .filter(p -> p.getPeriodNum() == 1 && p.getParsedFeedback() != null)
-                .findFirst()
-                .map(p -> p.getParsedFeedback().getSummaryFeedback())
-                .orElse(null);
+        // 현재 교시 이전까지 완료된 Q&A 전사본
+        final List<String> prevQnA = session.getPeriods().stream()
+                .filter(p -> p.getPeriodNum() < periodNum && p.getTranscript() != null && !p.getTranscript().isBlank())
+                .map(p -> "Q" + p.getPeriodNum() + ": " + p.getQuestion() + "\nA: " + p.getTranscript())
+                .collect(Collectors.toList());
 
         log.info("{}교시 피드백 생성 시작. sessionId={}", periodNum, sessionId);
-        // 피드백 생성(영상 분석) + NEW_QUESTION 생성(텍스트) + STT 전사 병렬 실행
         long t = System.currentTimeMillis();
+
+        // 피드백 생성(영상 분석)
         CompletableFuture<GeminiInterviewService.PeriodAnalysisResult> feedbackFuture =
                 CompletableFuture.supplyAsync(() ->
                         geminiService.generatePeriodAnalysis(geminiUri, geminiMimeType,
                                 currentQuestion, iType, null));
 
-        CompletableFuture<String> newQuestionFuture =
-                CompletableFuture.supplyAsync(() ->
-                        geminiService.generateNewQuestion(null, targetCompany, targetJob,
-                                prevQuestions, introSummary, currentQuestion, iType));
-
+        // STT 전사 → 완료 즉시 새 질문 생성 시작 (체이닝)
         CompletableFuture<String> transcriptFuture =
                 CompletableFuture.supplyAsync(() ->
                         geminiService.extractTranscript(geminiUri, geminiMimeType));
 
+        CompletableFuture<String> newQuestionFuture = transcriptFuture
+                .thenApplyAsync(transcript -> {
+                    List<String> fullQnA = new ArrayList<>(prevQnA);
+                    if (transcript != null && !transcript.isBlank()) {
+                        fullQnA.add("Q" + periodNum + ": " + currentQuestion + "\nA: " + transcript);
+                    }
+                    return geminiService.generateNewQuestion(null, targetCompany, targetJob,
+                            allPrevQuestions, null, null, iType, fullQnA);
+                })
+                .exceptionally(e -> {
+                    log.warn("새 질문 사전 생성 실패: {}", e.getMessage());
+                    return null;
+                });
+
         GeminiInterviewService.PeriodAnalysisResult analysis;
-        String pregenQuestion;
         String transcript;
+        String pregenQuestion;
         try {
-            analysis       = feedbackFuture.get(300, TimeUnit.SECONDS);
-            pregenQuestion = newQuestionFuture.get(60,  TimeUnit.SECONDS);
-            transcript     = transcriptFuture.get(120,  TimeUnit.SECONDS);
+            analysis      = feedbackFuture.get(300, TimeUnit.SECONDS);
+            transcript    = transcriptFuture.getNow(null);
+            pregenQuestion = newQuestionFuture.get(90, TimeUnit.SECONDS);
         } catch (java.util.concurrent.TimeoutException e) {
-            analysis       = feedbackFuture.getNow(null);
-            pregenQuestion = null;
-            transcript     = null;
+            analysis      = feedbackFuture.getNow(null);
+            transcript    = transcriptFuture.getNow(null);
+            pregenQuestion = newQuestionFuture.getNow(null);
             if (analysis == null) throw new RuntimeException("피드백 생성 타임아웃", e);
         } catch (Exception e) {
             throw new RuntimeException("분석 중 오류: " + e.getMessage(), e);
         }
-        log.info("[TIMING] {}교시 피드백+NEW_QUESTION+STT 병렬 생성: {}ms", periodNum, System.currentTimeMillis() - t);
+        log.info("[TIMING] {}교시 피드백+STT+새질문 생성: {}ms", periodNum, System.currentTimeMillis() - t);
 
         PeriodFeedback parsedFeedback = geminiService.parsePeriodFeedback(analysis.feedbackJson());
 
         periodResult.setFeedbackJson(analysis.feedbackJson());
         periodResult.setParsedFeedback(parsedFeedback);
         periodResult.setFollowUpQuestions(analysis.followUpQuestions());
-        periodResult.setPreGeneratedNewQuestion(pregenQuestion);
         periodResult.setTranscript(transcript);
+        periodResult.setPreGeneratedNewQuestion(pregenQuestion);
         periodResult.setCompletedAt(LocalDateTime.now());
 
         sessionRepository.save(session);
@@ -250,25 +261,22 @@ public class InterviewService {
             questionType = QuestionType.FOLLOW_UP;
 
         } else if ("NEW_QUESTION".equalsIgnoreCase(request.getChoiceType())) {
-            // 사전 생성된 질문이 있으면 즉시 반환
             String pregen = getPeriodResult(session, currentPeriodNum).getPreGeneratedNewQuestion();
             if (pregen != null && !pregen.isBlank()) {
                 nextQuestion = pregen;
-                log.info("사전 생성된 NEW_QUESTION 사용. period={}", currentPeriodNum);
+                log.info("사전 생성된 NEW_QUESTION 반환. period={}", currentPeriodNum);
             } else {
-                // fallback: 즉시 생성
+                // 사전 생성 실패 시 fallback: 전체 Q&A 전사본으로 즉시 생성
                 List<String> previousQuestions = session.getPeriods().stream()
-                        .map(PeriodResult::getQuestion)
+                        .map(PeriodResult::getQuestion).collect(Collectors.toList());
+                List<String> allQnA = session.getPeriods().stream()
+                        .filter(p -> p.getTranscript() != null && !p.getTranscript().isBlank())
+                        .map(p -> "Q" + p.getPeriodNum() + ": " + p.getQuestion() + "\nA: " + p.getTranscript())
                         .collect(Collectors.toList());
-                String introContext = session.getPeriods().stream()
-                        .filter(p -> p.getPeriodNum() == 1 && p.getParsedFeedback() != null)
-                        .findFirst()
-                        .map(p -> p.getParsedFeedback().getSummaryFeedback())
-                        .orElse(null);
+                log.warn("사전 생성 없음 — fallback 즉시 생성. period={}", currentPeriodNum);
                 nextQuestion = geminiService.generateNewQuestion(
                         null, session.getTargetCompany(), session.getTargetJob(),
-                        previousQuestions, introContext, null, session.getInterviewerType());
-                log.info("NEW_QUESTION fallback 즉시 생성. period={}", currentPeriodNum);
+                        previousQuestions, null, null, session.getInterviewerType(), allQnA);
             }
             questionType = QuestionType.NEW;
 
@@ -642,7 +650,9 @@ public class InterviewService {
                 .map(PeriodResult::getParsedFeedback)
                 .collect(Collectors.toList());
 
+        // completedAt == null 인 교시는 피드백 생성이 완료되지 않은 교시(break 중 사전 생성된 빈 교시 포함)
         List<com.readyq.dto.interview.PeriodDetail> periodDetails = session.getPeriods().stream()
+                .filter(pr -> pr.getCompletedAt() != null)
                 .map(pr -> {
                     boolean hasVideo = pr.getVideoPath() != null
                             && Files.exists(Paths.get(pr.getVideoPath()));

@@ -58,6 +58,9 @@ export default function InterviewCamera({ navigation, route }) {
 
   // 면접 종료 타입
   const [exitType, setExitType] = useState(null)
+
+  // 랜덤 모드: break 진입 시 사전 호출한 NEW_QUESTION promise
+  const nextPeriodPromiseRef = useRef(null)
   // 'normal' | 'forced'
 
   // exit 버튼 눌렀을 때 멈춤 상태 (Timer 제어)
@@ -239,6 +242,16 @@ export default function InterviewCamera({ navigation, route }) {
     doLoadingFlow()
   }, [phase, sessionId, round, exitType])
 
+  // break 진입 시 랜덤 모드 사전 호출
+  useEffect(() => {
+    if (phase !== 'break' || selectedType === 'select') return
+    nextPeriodPromiseRef.current = proceedToNextPeriod(sessionId, round, 'NEW_QUESTION')
+      .catch(e => {
+        console.warn('[pre-fetch] NEW_QUESTION 사전 호출 실패:', e.message)
+        return null
+      })
+  }, [phase])
+
   // 쉬는 시간 액션
   const handleBreakAction = async (type) => {
     if (type === 'end') {
@@ -257,13 +270,25 @@ export default function InterviewCamera({ navigation, route }) {
       return
     }
 
-    // 랜덤: NEW_QUESTION 자동 진행
+    // 랜덤: 사전 호출한 promise 사용 → 이미 완료됐으면 즉시 반환
+    const promise = nextPeriodPromiseRef.current
+    nextPeriodPromiseRef.current = null
+    if (promise) {
+      const res = await promise
+      if (res) {
+        setRound(res.periodNum)
+        setQuestion(`${res.periodNum}교시\n${res.question}`)
+        periodQuestionsRef.current[res.periodNum] = res.question
+        setPhase('question')
+        return
+      }
+    }
+    // fallback: 사전 호출이 없거나 실패한 경우
     try {
       const res = await proceedToNextPeriod(sessionId, round, 'NEW_QUESTION')
-      const qText = res.question
       setRound(res.periodNum)
-      setQuestion(`${res.periodNum}교시\n${qText}`)
-      periodQuestionsRef.current[res.periodNum] = qText
+      setQuestion(`${res.periodNum}교시\n${res.question}`)
+      periodQuestionsRef.current[res.periodNum] = res.question
     } catch (e) {
       const nextRound = round + 1
       setRound(nextRound)

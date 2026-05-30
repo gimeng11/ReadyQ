@@ -1,11 +1,10 @@
-import { View, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Image } from 'react-native'
-import { useState, useEffect, useCallback } from 'react'
+import { View, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native'
+import { useState, useCallback } from 'react'
 import { useFocusEffect } from '@react-navigation/native'
-import { styles } from './ArchiveStyles'
+import { styles } from './CoverLetterArchiveStyles'
 import CustomText from '../../components/CustomText'
 import Header from '../../components/Header'
-import BottomTab from '../../components/BottomTab'
-import { getInterviewHistory, deleteInterview, togglePinInterview } from '../../api/interview'
+import { getCoverLetterHistory, deleteCoverLetter, togglePinCoverLetter } from '../../api/coverLetter'
 
 const formatDate = (dateVal) => {
   if (!dateVal) return '-'
@@ -21,25 +20,22 @@ const formatDate = (dateVal) => {
   return `${month}.${day}`
 }
 
-export default function ArchiveScreen({ navigation }) {
-  const [archiveList, setArchiveList] = useState([])
+const getScoreColor = (score) => {
+  if (score >= 85) return '#3281FF'
+  if (score >= 70) return '#22C55E'
+  if (score >= 55) return '#ff8630'
+  return '#EF4444'
+}
+
+export default function CoverLetterArchiveScreen({ navigation }) {
+  const [list, setList] = useState([])
   const [loading, setLoading] = useState(true)
 
   const loadHistory = useCallback(() => {
     setLoading(true)
-    getInterviewHistory()
-      .then(sessions => {
-        const list = sessions
-          .filter(s => s.status === 'COMPLETED')
-          .map(s => ({
-            id: s.id,
-            title: s.title || '제목 없음',
-            date: formatDate(s.completedAt || s.createdAt),
-            pinned: s.pinned ?? false,
-          }))
-        setArchiveList(list)
-      })
-      .catch(e => console.error('아카이브 조회 실패:', e))
+    getCoverLetterHistory()
+      .then(data => setList(data || []))
+      .catch(e => console.error('자소서 기록 조회 실패:', e))
       .finally(() => setLoading(false))
   }, [])
 
@@ -47,8 +43,8 @@ export default function ArchiveScreen({ navigation }) {
 
   const handleDelete = (item) => {
     Alert.alert(
-      '면접 삭제',
-      `'${item.title}' 면접 기록을 삭제할까요?`,
+      '삭제',
+      `'${item.title}' 기록을 삭제할까요?`,
       [
         { text: '취소', style: 'cancel' },
         {
@@ -56,8 +52,8 @@ export default function ArchiveScreen({ navigation }) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteInterview(item.id)
-              setArchiveList(prev => prev.filter(a => a.id !== item.id))
+              await deleteCoverLetter(item.id)
+              setList(prev => prev.filter(r => r.id !== item.id))
             } catch (e) {
               Alert.alert('오류', '삭제에 실패했어요.')
             }
@@ -69,15 +65,15 @@ export default function ArchiveScreen({ navigation }) {
 
   const handleTogglePin = async (item) => {
     try {
-      const res = await togglePinInterview(item.id)
+      const res = await togglePinCoverLetter(item.id)
       const newPinned = res?.pinned ?? !item.pinned
-      setArchiveList(prev => {
-        const updated = prev.map(a =>
-          a.id === item.id ? { ...a, pinned: newPinned } : a
+      setList(prev => {
+        const updated = prev.map(r =>
+          r.id === item.id ? { ...r, pinned: newPinned } : r
         )
         return [
-          ...updated.filter(a => a.pinned),
-          ...updated.filter(a => !a.pinned),
+          ...updated.filter(r => r.pinned),
+          ...updated.filter(r => !r.pinned),
         ]
       })
     } catch (e) {
@@ -88,7 +84,7 @@ export default function ArchiveScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Header
-        title='면접 아카이브'
+        title="자소서 첨삭 기록"
         onBack={() => navigation.goBack()}
       />
 
@@ -99,24 +95,17 @@ export default function ArchiveScreen({ navigation }) {
           style={{ width: '100%' }}
           contentContainerStyle={styles.cardSection}
         >
-          {archiveList.length === 0 ? (
+          {list.length === 0 ? (
             <CustomText style={{ textAlign: 'center', color: '#aaa', marginTop: 40 }}>
-              완료된 면접이 없어요.
+              저장된 자소서 첨삭이 없어요.
             </CustomText>
           ) : (
-            archiveList.map((item) => (
+            list.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={[styles.card, item.pinned && styles.cardPinned]}
                 activeOpacity={0.75}
-                onPress={() =>
-                  navigation.navigate('Feedback', {
-                    sessionId: item.id,
-                    title: item.title,
-                    date: item.date,
-                    from: 'Archive',
-                  })
-                }
+                onPress={() => navigation.navigate('CoverLetterDetail', { record: item })}
               >
                 <View style={styles.cardRow}>
                   <View style={styles.cardInfo}>
@@ -126,7 +115,17 @@ export default function ArchiveScreen({ navigation }) {
                     <CustomText weight="bold" style={styles.cardTitle} numberOfLines={1}>
                       {item.title}
                     </CustomText>
-                    <CustomText style={styles.cardDesc}>{item.date}</CustomText>
+                    <View style={styles.cardMeta}>
+                      <CustomText style={styles.cardDesc}>
+                        {formatDate(item.createdAt)}
+                      </CustomText>
+                      <CustomText
+                        weight="bold"
+                        style={[styles.cardScore, { color: getScoreColor(item.overallScore) }]}
+                      >
+                        {item.overallScore}점
+                      </CustomText>
+                    </View>
                   </View>
 
                   <View style={styles.actionRow}>
@@ -154,8 +153,6 @@ export default function ArchiveScreen({ navigation }) {
           )}
         </ScrollView>
       )}
-
-      <BottomTab navigation={navigation} routeName="Archive" />
     </View>
   )
 }

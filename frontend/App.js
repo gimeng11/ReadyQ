@@ -34,6 +34,8 @@ import FeedbackDetail from './src/screens/Feedback/FeedbackDetail'
 import FeedbackComparison from './src/screens/Feedback/FeedbackComparison'
 import PostListScreen from './src/screens/Community/PostListScreen'
 import ProfileEditScreen from './src/screens/Profile/ProfileEditScreen'
+import CoverLetterArchiveScreen from './src/screens/CoverLetter/CoverLetterArchiveScreen'
+import CoverLetterDetailScreen from './src/screens/CoverLetter/CoverLetterDetailScreen'
 
 
 const Stack = createNativeStackNavigator()
@@ -83,6 +85,8 @@ export default function App() {
         <Stack.Screen name="FeedbackComparison" component={FeedbackComparison} />
         <Stack.Screen name="PostList" component={PostListScreen} />
         <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
+        <Stack.Screen name="CoverLetterArchive" component={CoverLetterArchiveScreen} />
+        <Stack.Screen name="CoverLetterDetail" component={CoverLetterDetailScreen} />
       </Stack.Navigator>
     </NavigationContainer>
     </PostProvider>

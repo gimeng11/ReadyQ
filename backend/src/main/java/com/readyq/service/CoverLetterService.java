@@ -3,17 +3,22 @@ package com.readyq.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.readyq.dto.coverletter.CoverLetterReviewResponse;
+import com.readyq.dto.coverletter.CoverLetterSaveRequest;
 import com.readyq.dto.coverletter.SpellerError;
+import com.readyq.model.CoverLetterRecord;
+import com.readyq.repository.CoverLetterRecordRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -22,6 +27,7 @@ public class CoverLetterService {
 
     private final GeminiInterviewService geminiService;
     private final SpellerService spellerService;
+    private final CoverLetterRecordRepository recordRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final String GEMINI_PROMPT_TEMPLATE =
@@ -87,6 +93,52 @@ public class CoverLetterService {
         log.info("[TIMING] 자소서 첨삭+맞춤법 병렬: {}ms", System.currentTimeMillis() - t);
 
         return parseGeminiResult(geminiRaw, spellerErrors, spellerAvailable, spellerChecked);
+    }
+
+    public CoverLetterRecord save(String userId, CoverLetterSaveRequest request) {
+        CoverLetterRecord record = CoverLetterRecord.builder()
+                .userId(userId)
+                .title(request.getTitle())
+                .text(request.getText())
+                .overallScore(request.getOverallScore())
+                .overallComment(request.getOverallComment())
+                .strengths(request.getStrengths())
+                .improvements(request.getImprovements())
+                .spellerErrors(request.getSpellerErrors())
+                .spellerAvailable(request.isSpellerAvailable())
+                .spellerChecked(request.isSpellerChecked())
+                .createdAt(LocalDateTime.now())
+                .build();
+        return recordRepository.save(record);
+    }
+
+    public List<CoverLetterRecord> getHistory(String userId) {
+        return recordRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .sorted((a, b) -> {
+                    if (a.isPinned() == b.isPinned()) return 0;
+                    return a.isPinned() ? -1 : 1;
+                })
+                .collect(Collectors.toList());
+    }
+
+    public void delete(String userId, String id) {
+        CoverLetterRecord record = recordRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기록입니다."));
+        if (!record.getUserId().equals(userId)) {
+            throw new SecurityException("삭제 권한이 없습니다.");
+        }
+        recordRepository.delete(record);
+    }
+
+    public boolean togglePin(String userId, String id) {
+        CoverLetterRecord record = recordRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기록입니다."));
+        if (!record.getUserId().equals(userId)) {
+            throw new SecurityException("권한이 없습니다.");
+        }
+        record.setPinned(!record.isPinned());
+        recordRepository.save(record);
+        return record.isPinned();
     }
 
     private CoverLetterReviewResponse parseGeminiResult(String raw,

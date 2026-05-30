@@ -9,6 +9,7 @@ public class BoardResponse {
     private String id;
     private String tag; //boardType
     private String title;
+    private String content;
     private String preview;
     private String category;
     private String author; // 익명 처리된 작성자명
@@ -25,6 +26,7 @@ public class BoardResponse {
         this.id = board.getId();
         this.tag = board.getBoardType();
         this.title = board.getTitle();
+        this.content = board.getContent();
         // 내용이 길면 preview 생성
         this.preview = board.getContent().length() > 30 ? board.getContent().substring(0, 30) + "..." : board.getContent();
         this.category = board.getCategory();

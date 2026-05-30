@@ -26,11 +26,11 @@ const formatDate = (dateVal) => {
 const mapToFrontendScores = (competencyScores) => {
   const cs = competencyScores || {}
   return {
-    logic: Math.round(((cs.logicStructure ?? 0) + (cs.answerClarity ?? 0)) / 2),
-    speed: cs.speechSpeed ?? 0,
-    fluency: cs.fillerWords ?? 0,
-    nonverbal: cs.eyeContact ?? 0,
-    persuasion: cs.voiceVolume ?? 0,
+    logic: cs.answerStructure ?? 0,
+    speed: Math.round(((cs.speechSpeed ?? 0) + (cs.voiceVolume ?? 0)) / 2),
+    fluency: Math.round(((cs.fillerWords ?? 0) + (cs.speechBreak ?? 0)) / 2),
+    nonverbal: Math.round(((cs.eyeContact ?? 0) + (cs.facialExpression ?? 0) + (cs.posture ?? 0)) / 3),
+    persuasion: Math.round(((cs.voiceTone ?? 0) + (cs.intonation ?? 0) + (cs.emphasis ?? 0)) / 3),
   }
 }
 

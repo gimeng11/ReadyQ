@@ -9,7 +9,6 @@ export const styles = StyleSheet.create({
   cardSection: {
     padding: 20,
     paddingTop: 10,
-    paddingBottom: 90,
     width: '100%',
   },
   card: {
@@ -43,10 +42,18 @@ export const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 15,
   },
+  cardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+  },
   cardDesc: {
     fontSize: 13,
-    marginTop: 4,
     color: '#64748B',
+  },
+  cardScore: {
+    fontSize: 13,
   },
   actionRow: {
     flexDirection: 'row',

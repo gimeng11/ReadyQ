@@ -64,9 +64,7 @@ export default function CommunityScreen({ navigation }) {
   const fetchBoards = async () => {
     setLoading(true);
     try {
-      const url = activeTab === '인기'
-        ? `${BASE_URL}/api/boards`
-        : `${BASE_URL}/api/boards?boardType=${activeTab}`;
+      const url = `${BASE_URL}/api/boards?boardType=${activeTab}`;
       const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
