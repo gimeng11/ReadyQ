@@ -82,6 +82,8 @@ export const styles = StyleSheet.create({
     color: '#64748B'
   },
   arrowIcon: {
+    width:24, 
+    height: 24,
     tintColor: '#999', 
   },
   divider: {
