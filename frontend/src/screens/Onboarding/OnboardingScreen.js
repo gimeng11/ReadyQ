@@ -6,6 +6,7 @@ import {
   FlatList,
   Dimensions,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { styles } from './OnboardingStyles'
 
@@ -14,6 +15,8 @@ import CustomText from '../../components/CustomText'
 
 export default function OnboardingScreen({ navigation }) {
   const { width, height } = Dimensions.get('window')
+
+  const insets = useSafeAreaInsets()
 
   const flatListRef = useRef(null)
 
@@ -110,7 +113,15 @@ export default function OnboardingScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { 
+          paddingTop: insets.top + 20,
+          paddingBottom: insets.bottom + 20,
+        }
+      ]}
+    >
       <FlatList
         ref={flatListRef}
         data={onboardingData}
