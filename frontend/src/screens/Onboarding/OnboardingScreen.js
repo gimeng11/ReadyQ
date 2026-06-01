@@ -13,7 +13,7 @@ import CustomButton from '../../components/CustomButton'
 import CustomText from '../../components/CustomText'
 
 export default function OnboardingScreen({ navigation }) {
-  const { width } = Dimensions.get('window')
+  const { width, height } = Dimensions.get('window')
 
   const flatListRef = useRef(null)
 
