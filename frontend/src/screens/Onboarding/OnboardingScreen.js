@@ -139,7 +139,9 @@ export default function OnboardingScreen({ navigation }) {
           <View
             style={{
               width,
+              flex: 1,
               alignItems: 'center',
+              justifyContent: 'flex-end',
             }}
           >
             <View style={styles.topSection}>

@@ -7,10 +7,11 @@ export const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FB',
     justifyContent: 'space-between',
-    //paddingBottom: 36,
+    paddingBottom: 36,
   },
   topSection: {
     alignItems: 'center',
+    marginBottom: 20,
   },
   textContainer: {
     minHeight: 150,
