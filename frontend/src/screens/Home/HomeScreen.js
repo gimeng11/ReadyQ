@@ -38,16 +38,6 @@ export default function HomeScreen({ navigation }) {
 
         <TouchableOpacity
             style={styles.card}
-            onPress={() => navigation.navigate('MockInterview')}
-        >
-        <Text style={styles.cardTitle}>함께 모의 면접하기</Text>
-        <Text style={styles.cardDesc}>
-            사용자와 1:1 또는 그룹으로 면접 연습을 할 수 있어요.
-        </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-            style={styles.card}
             onPress={() => navigation.navigate('Resume')}
         >
         <Text style={styles.cardTitle}>자소서 첨삭하기</Text>
