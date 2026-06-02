@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
   },
   topSection: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 15,
   },
   textContainer: {
     minHeight: 150,
@@ -78,8 +78,8 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 32,
-    marginBottom: 40,
+    marginTop: 20,
+    marginBottom: 35,
   },
   dot: {
     width: 8,
