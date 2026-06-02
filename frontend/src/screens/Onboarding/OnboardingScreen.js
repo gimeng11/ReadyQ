@@ -12,6 +12,7 @@ import { styles } from './OnboardingStyles'
 
 import CustomButton from '../../components/CustomButton'
 import CustomText from '../../components/CustomText'
+import { saveOnboardingSeen } from '../../utils/storage'
 
 export default function OnboardingScreen({ navigation }) {
   const { width, height } = Dimensions.get('window')
@@ -239,7 +240,10 @@ export default function OnboardingScreen({ navigation }) {
         <CustomButton
           title="바로 시작하기"
           type="primary"
-          onPress={() => navigation.navigate('Home')}
+          onPress={async () => {
+            await saveOnboardingSeen()
+            navigation.reset({ index: 0, routes: [{ name: 'Home' }] })
+          }}
         />
       </View>
     </View>
