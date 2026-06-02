@@ -5,6 +5,7 @@ import { PostProvider } from './src/context/PostContext';
 import { UserProvider } from './src/context/UserContext';
 
 import StartScreen from './src/screens/StartScreen/StartScreen'
+import OnboardingScreen from './src/screens/Onboarding/OnboardingScreen'
 import LoginScreen from './src/screens/LoginScreen/LoginScreen'
 import SignUpScreen from './src/screens/SignUpScreen/SignUpScreen'
 import SignUpJobScreen from './src/screens/SignUpScreen/SignUpJobScreen'
@@ -56,6 +57,7 @@ export default function App() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Start" component={StartScreen} />
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="SignUpJob" component={SignUpJobScreen} />

@@ -85,11 +85,15 @@ export default function LoginScreen({ navigation }) {
           onChangeText={setPassword}
         />
 
+
         <CustomButton
           title={loading ? '로그인 중...' : '로그인'}
           type="secondary"
           onPress={handleLogin}
         />
+
+        <CustomButton title="로그인" type="secondary" onPress={() => navigation.navigate('Onboarding')} />
+         frontend_interview
 
         <View style={styles.linkRow}>
           <TouchableOpacity onPress={() => navigation.navigate('FindId')}>
