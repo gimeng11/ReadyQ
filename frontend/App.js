@@ -19,7 +19,6 @@ import InterviewTitle from './src/screens/Interview/InterviewTitle'
 import QuestionType from './src/screens/Interview/QuestionType'
 import InterviewCamera from './src/screens/Interview/InterviewCamera'
 import InterviewEnd from './src/screens/Interview/InterviewEnd'
-import MockInterviewScreen from './src/screens/MockInterview/MockInterviewScreen'
 import ResumeScreen from './src/screens/Resume/ResumeScreen'
 import ArchiveScreen from './src/screens/Archive/ArchiveScreen'
 import CommunityScreen from './src/screens/Community/CommunityScreen'
@@ -71,7 +70,6 @@ export default function App() {
         <Stack.Screen name="QuestionType" component={QuestionType} />
         <Stack.Screen name="InterviewCamera" component={InterviewCamera} />
         <Stack.Screen name="InterviewEnd" component={InterviewEnd} />
-        <Stack.Screen name="MockInterview" component={MockInterviewScreen} />
         <Stack.Screen name="Resume" component={ResumeScreen} />
         <Stack.Screen name="Archive" component={ArchiveScreen} />
         <Stack.Screen name="Community" component={CommunityScreen} />
