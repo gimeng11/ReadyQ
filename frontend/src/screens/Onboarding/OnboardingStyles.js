@@ -39,7 +39,6 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   imageContainer: {
     width: '100%',
     height: height * 0.42,
@@ -80,7 +79,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 32,
-    marginBottom: 60,
+    marginBottom: 40,
   },
   dot: {
     width: 8,

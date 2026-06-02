@@ -89,7 +89,7 @@ export default function FeedbackScreen({ navigation, route}) {
       title: '비언어 표현력',
       subtitle: '표정이 어색해요.',
       score: 43,
-      icon: require('../../../assets/icons/person.png'),
+      icon: require('../../../assets/icons/profile.png'),
     },
     {
       id: 'persuasion',
