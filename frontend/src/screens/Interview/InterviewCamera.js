@@ -337,12 +337,14 @@ export default function InterviewCamera({ navigation, route }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <CameraView
-        ref={cameraRef}
-        style={StyleSheet.absoluteFillObject}
-        facing={facing}
-        mode="video"
-      />
+      {(phase === 'guide' || phase === 'question' || phase === 'loading') && (
+        <CameraView
+          ref={cameraRef}
+          style={StyleSheet.absoluteFillObject}
+          facing={facing}
+          mode="video"
+        />
+      )}
 
       {/* guide */}
       {phase === 'guide' && (

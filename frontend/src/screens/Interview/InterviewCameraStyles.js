@@ -74,6 +74,9 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   icon: {
+    width: 22,
+    height: 22,
+    resizeMode: 'contain',
     tintColor: '#fff',
   },
   questionBox: {
