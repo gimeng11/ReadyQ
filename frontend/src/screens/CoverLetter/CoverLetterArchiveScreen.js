@@ -1,10 +1,10 @@
-import { View, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native'
+import { View, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
 import { useState, useCallback } from 'react'
 import { useFocusEffect } from '@react-navigation/native'
 import { styles } from './CoverLetterArchiveStyles'
 import CustomText from '../../components/CustomText'
 import Header from '../../components/Header'
-import { getCoverLetterHistory, deleteCoverLetter, togglePinCoverLetter } from '../../api/coverLetter'
+import { getCoverLetterHistory, deleteCoverLetter, togglePinCoverLetter, renameCoverLetter } from '../../api/coverLetter'
 
 const formatDate = (dateVal) => {
   if (!dateVal) return '-'
@@ -30,6 +30,9 @@ const getScoreColor = (score) => {
 export default function CoverLetterArchiveScreen({ navigation }) {
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(true)
+  const [editModalVisible, setEditModalVisible] = useState(false)
+  const [editItem, setEditItem] = useState(null)
+  const [editTitle, setEditTitle] = useState('')
 
   const loadHistory = useCallback(() => {
     setLoading(true)
@@ -40,6 +43,26 @@ export default function CoverLetterArchiveScreen({ navigation }) {
   }, [])
 
   useFocusEffect(loadHistory)
+
+  const handleEdit = (item) => {
+    setEditItem(item)
+    setEditTitle(item.title)
+    setEditModalVisible(true)
+  }
+
+  const handleEditSave = async () => {
+    const trimmed = editTitle.trim()
+    if (!trimmed) return
+    try {
+      await renameCoverLetter(editItem.id, trimmed)
+      setList(prev => prev.map(r =>
+        r.id === editItem.id ? { ...r, title: trimmed } : r
+      ))
+      setEditModalVisible(false)
+    } catch (e) {
+      Alert.alert('오류', '제목 수정에 실패했어요.')
+    }
+  }
 
   const handleDelete = (item) => {
     Alert.alert(
@@ -131,6 +154,14 @@ export default function CoverLetterArchiveScreen({ navigation }) {
                   <View style={styles.actionRow}>
                     <TouchableOpacity
                       style={styles.actionBtn}
+                      onPress={() => handleEdit(item)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <CustomText style={styles.actionText}>수정</CustomText>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.actionBtn}
                       onPress={() => handleTogglePin(item)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
@@ -153,6 +184,44 @@ export default function CoverLetterArchiveScreen({ navigation }) {
           )}
         </ScrollView>
       )}
+      <Modal
+        visible={editModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalBox}>
+            <CustomText weight="bold" style={styles.modalTitle}>제목 수정</CustomText>
+            <TextInput
+              style={styles.modalInput}
+              value={editTitle}
+              onChangeText={setEditTitle}
+              autoFocus
+              maxLength={50}
+              placeholder="새 제목을 입력하세요"
+              placeholderTextColor="#bbb"
+            />
+            <View style={styles.modalBtns}>
+              <TouchableOpacity
+                style={styles.modalBtn}
+                onPress={() => setEditModalVisible(false)}
+              >
+                <CustomText style={styles.modalBtnText}>취소</CustomText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnSave]}
+                onPress={handleEditSave}
+              >
+                <CustomText style={[styles.modalBtnText, styles.modalBtnTextSave]}>저장</CustomText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   )
 }

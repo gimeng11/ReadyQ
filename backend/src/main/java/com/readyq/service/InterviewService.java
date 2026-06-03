@@ -376,7 +376,20 @@ public class InterviewService {
     }
 
     // ───────────────────────────────────────────────
-    // 6b. 고정 / 해제 토글
+    // 6b. 제목 수정
+    // ───────────────────────────────────────────────
+
+    public void renameSession(String userId, String sessionId, String newTitle) {
+        if (newTitle == null || newTitle.isBlank()) {
+            throw new IllegalArgumentException("제목은 비워둘 수 없습니다.");
+        }
+        InterviewSession session = getSessionAndValidateOwner(sessionId, userId);
+        session.setTitle(newTitle.trim());
+        sessionRepository.save(session);
+    }
+
+    // ───────────────────────────────────────────────
+    // 6c. 고정 / 해제 토글
     // ───────────────────────────────────────────────
 
     public boolean togglePin(String userId, String sessionId) {

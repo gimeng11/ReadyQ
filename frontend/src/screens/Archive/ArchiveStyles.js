@@ -63,4 +63,55 @@ export const styles = StyleSheet.create({
   actionTextActive: {
     color: '#3281FF',
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalBox: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 24,
+  },
+  modalTitle: {
+    fontSize: 16,
+    marginBottom: 14,
+  },
+  modalInput: {
+    borderWidth: 1.2,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#222',
+    marginBottom: 18,
+    fontFamily: 'Pretendard-Regular',
+  },
+  modalBtns: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  modalBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1.2,
+    borderColor: '#ddd',
+  },
+  modalBtnSave: {
+    borderColor: '#3281FF',
+    backgroundColor: '#3281FF',
+  },
+  modalBtnText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  modalBtnTextSave: {
+    color: '#fff',
+  },
 })

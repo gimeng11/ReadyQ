@@ -164,6 +164,20 @@ public class InterviewController {
     }
 
     /**
+     * PATCH /api/interview/{sessionId}/title
+     * 면접 제목 수정
+     */
+    @PatchMapping("/{sessionId}/title")
+    public ResponseEntity<Void> renameSession(
+            Authentication auth,
+            @PathVariable String sessionId,
+            @RequestBody java.util.Map<String, String> body) {
+
+        interviewService.renameSession(auth.getName(), sessionId, body.get("title"));
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * PATCH /api/interview/{sessionId}/pin
      * 상단 고정 / 해제 토글. 응답: { "pinned": true/false }
      */

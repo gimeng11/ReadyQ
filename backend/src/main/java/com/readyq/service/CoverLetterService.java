@@ -121,6 +121,19 @@ public class CoverLetterService {
                 .collect(Collectors.toList());
     }
 
+    public void rename(String userId, String id, String newTitle) {
+        if (newTitle == null || newTitle.isBlank()) {
+            throw new IllegalArgumentException("제목은 비워둘 수 없습니다.");
+        }
+        CoverLetterRecord record = recordRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기록입니다."));
+        if (!record.getUserId().equals(userId)) {
+            throw new SecurityException("권한이 없습니다.");
+        }
+        record.setTitle(newTitle.trim());
+        recordRepository.save(record);
+    }
+
     public void delete(String userId, String id) {
         CoverLetterRecord record = recordRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기록입니다."));

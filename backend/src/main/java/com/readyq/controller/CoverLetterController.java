@@ -72,6 +72,19 @@ public class CoverLetterController {
     }
 
     /**
+     * PATCH /api/coverletter/history/{id}/title
+     * 자소서 제목 수정
+     */
+    @PatchMapping("/history/{id}/title")
+    public ResponseEntity<Void> rename(
+            Authentication auth,
+            @PathVariable String id,
+            @RequestBody Map<String, String> body) {
+        coverLetterService.rename(auth.getName(), id, body.get("title"));
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * PATCH /api/coverletter/history/{id}/pin
      * 상단 고정 토글
      */
