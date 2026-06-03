@@ -1,11 +1,11 @@
-import { View, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Image } from 'react-native'
+import { View, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Image, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
 import { useState, useEffect, useCallback } from 'react'
 import { useFocusEffect } from '@react-navigation/native'
 import { styles } from './ArchiveStyles'
 import CustomText from '../../components/CustomText'
 import Header from '../../components/Header'
 import BottomTab from '../../components/BottomTab'
-import { getInterviewHistory, deleteInterview, togglePinInterview } from '../../api/interview'
+import { getInterviewHistory, deleteInterview, togglePinInterview, renameInterview } from '../../api/interview'
 
 const formatDate = (dateVal) => {
   if (!dateVal) return '-'
@@ -24,6 +24,9 @@ const formatDate = (dateVal) => {
 export default function ArchiveScreen({ navigation }) {
   const [archiveList, setArchiveList] = useState([])
   const [loading, setLoading] = useState(true)
+  const [editModalVisible, setEditModalVisible] = useState(false)
+  const [editItem, setEditItem] = useState(null)
+  const [editTitle, setEditTitle] = useState('')
 
   const loadHistory = useCallback(() => {
     setLoading(true)
@@ -44,6 +47,26 @@ export default function ArchiveScreen({ navigation }) {
   }, [])
 
   useFocusEffect(loadHistory)
+
+  const handleEdit = (item) => {
+    setEditItem(item)
+    setEditTitle(item.title)
+    setEditModalVisible(true)
+  }
+
+  const handleEditSave = async () => {
+    const trimmed = editTitle.trim()
+    if (!trimmed) return
+    try {
+      await renameInterview(editItem.id, trimmed)
+      setArchiveList(prev => prev.map(a =>
+        a.id === editItem.id ? { ...a, title: trimmed } : a
+      ))
+      setEditModalVisible(false)
+    } catch (e) {
+      Alert.alert('오류', '제목 수정에 실패했어요.')
+    }
+  }
 
   const handleDelete = (item) => {
     Alert.alert(
@@ -132,6 +155,14 @@ export default function ArchiveScreen({ navigation }) {
                   <View style={styles.actionRow}>
                     <TouchableOpacity
                       style={styles.actionBtn}
+                      onPress={() => handleEdit(item)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <CustomText style={styles.actionText}>수정</CustomText>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.actionBtn}
                       onPress={() => handleTogglePin(item)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
@@ -156,6 +187,45 @@ export default function ArchiveScreen({ navigation }) {
       )}
 
       <BottomTab navigation={navigation} routeName="Archive" />
+
+      <Modal
+        visible={editModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalBox}>
+            <CustomText weight="bold" style={styles.modalTitle}>제목 수정</CustomText>
+            <TextInput
+              style={styles.modalInput}
+              value={editTitle}
+              onChangeText={setEditTitle}
+              autoFocus
+              maxLength={50}
+              placeholder="새 제목을 입력하세요"
+              placeholderTextColor="#bbb"
+            />
+            <View style={styles.modalBtns}>
+              <TouchableOpacity
+                style={styles.modalBtn}
+                onPress={() => setEditModalVisible(false)}
+              >
+                <CustomText style={styles.modalBtnText}>취소</CustomText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnSave]}
+                onPress={handleEditSave}
+              >
+                <CustomText style={[styles.modalBtnText, styles.modalBtnTextSave]}>저장</CustomText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   )
 }

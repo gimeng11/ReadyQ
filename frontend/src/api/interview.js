@@ -55,6 +55,13 @@ export const getInterviewHistory = () =>
 export const deleteInterview = (sessionId) =>
   apiCallAuth(`/api/interview/${sessionId}`, { method: 'DELETE' })
 
+// 제목 수정
+export const renameInterview = (sessionId, title) =>
+  apiCallAuth(`/api/interview/${sessionId}/title`, {
+    method: 'PATCH',
+    body: JSON.stringify({ title }),
+  })
+
 // 상단 고정 / 해제 토글
 export const togglePinInterview = (sessionId) =>
   apiCallAuth(`/api/interview/${sessionId}/pin`, { method: 'PATCH' })

@@ -18,5 +18,11 @@ export const getCoverLetterHistory = () =>
 export const deleteCoverLetter = (id) =>
   apiCallAuth(`/api/coverletter/history/${id}`, { method: 'DELETE' })
 
+export const renameCoverLetter = (id, title) =>
+  apiCallAuth(`/api/coverletter/history/${id}/title`, {
+    method: 'PATCH',
+    body: JSON.stringify({ title }),
+  })
+
 export const togglePinCoverLetter = (id) =>
   apiCallAuth(`/api/coverletter/history/${id}/pin`, { method: 'PATCH' })
