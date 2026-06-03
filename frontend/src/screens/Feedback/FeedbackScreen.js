@@ -111,6 +111,8 @@ export default function FeedbackScreen({ navigation, route }) {
   const [openQuestionIds, setOpenQuestionIds] = useState(new Set())
   const [authToken, setAuthToken] = useState(null)
   const [eachScrollHeight, setEachScrollHeight] = useState(0)
+  const [selectedQuestion, setSelectedQuestion] = useState(null)
+  const [openQuestionId, setOpenQuestionId] = useState(null)
 
   useEffect(() => {
     AsyncStorage.getItem('token').then(setAuthToken)
@@ -200,25 +202,6 @@ export default function FeedbackScreen({ navigation, route }) {
   }
 
   const currentVideo = videoData[selectedVideoTab]
-
-  const [selectedQuestion, setSelectedQuestion] = useState(null)
-
-  // 추가된 state (기존 selectedQuestion 대체 느낌으로 사용)
-  const [openQuestionId, setOpenQuestionId] = useState(null)
-
-  const getGradeInfo = (score) => {
-    if (score >= 90) {
-      return { label: '우수', color: '#3281FF' } // 파랑
-    } else if (score >= 70) {
-      return { label: '양호', color: '#22C55E' } // 초록
-    } else if (score >= 50) {
-      return { label: '보통', color: '#ff8630' } // 주황
-    } else if (score >= 30) {
-      return { label: '주의', color: '#EAB308' } // 노랑
-    } else {
-      return { label: '부족', color: '#ff4848' } // 빨강
-    }
-  }
 
   const selectedQuestionData = questionData.find(item => item.tabId === selectedVideoTab)
 

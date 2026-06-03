@@ -63,11 +63,11 @@ export const styles = StyleSheet.create({
   actionBtn: {
     padding: 6,
   },
-  actionIcon: {
-    fontSize: 18,
-    opacity: 0.35,
+  actionText: {
+    fontSize: 13,
+    color: '#aaa',
   },
-  actionIconActive: {
-    opacity: 1,
+  actionTextActive: {
+    color: '#3281FF',
   },
 })

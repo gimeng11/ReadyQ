@@ -134,8 +134,8 @@ export default function CoverLetterArchiveScreen({ navigation }) {
                       onPress={() => handleTogglePin(item)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <CustomText style={[styles.actionIcon, item.pinned && styles.actionIconActive]}>
-                        📌
+                      <CustomText style={[styles.actionText, item.pinned && styles.actionTextActive]}>
+                        고정
                       </CustomText>
                     </TouchableOpacity>
 
@@ -144,7 +144,7 @@ export default function CoverLetterArchiveScreen({ navigation }) {
                       onPress={() => handleDelete(item)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <CustomText style={styles.actionIcon}>🗑️</CustomText>
+                      <CustomText style={styles.actionText}>삭제</CustomText>
                     </TouchableOpacity>
                   </View>
                 </View>
