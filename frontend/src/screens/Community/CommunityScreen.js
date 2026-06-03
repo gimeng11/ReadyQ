@@ -69,9 +69,9 @@ export default function CommunityScreen({ navigation }) {
       if (response.ok) {
         const data = await response.json();
         let result = Array.isArray(data) ? data : data.content || [];
-        // 인기탭은 좋아요 10개 이상만
+        // 인기탭은 좋아요 1개 이상만
         if (activeTab === '인기') {
-          result = result.filter((p) => (p.likes || p.likeCount || 0) >= 10);
+          result = result.filter((p) => (p.likes || p.likeCount || 0) >= 1);
         }
         setDbPosts(result);
       }
@@ -172,7 +172,7 @@ export default function CommunityScreen({ navigation }) {
             }
             ListEmptyComponent={
               <Text style={{ textAlign: 'center', color: '#BEC8D6', marginTop: 60, fontSize: 14 }}>
-                {activeTab === '인기' ? '아직 인기글이 없어요 (좋아요 10개 이상)' :
+                {activeTab === '인기' ? '아직 인기글이 없어요 (좋아요 1개 이상)' :
                   searchQuery.trim() ? '검색 결과가 없어요' : '아직 게시글이 없어요'}
               </Text>
             }

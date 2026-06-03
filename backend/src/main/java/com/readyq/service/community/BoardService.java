@@ -50,8 +50,8 @@ public class BoardService {
     public List<BoardResponse> getBoardsByBoardType(String boardType, String currentUsername) {
         // 인기 탭을 눌렀을 때
         if ("인기".equals(boardType)) {
-            // 좋아요가 10개 이상인 글만 가져오기
-            return boardRepository.findByLikesGreaterThanEqualOrderByCreatedAtDesc(10).stream()
+            // 좋아요가 1개 이상인 글만 가져오기
+            return boardRepository.findByLikesGreaterThanEqualOrderByCreatedAtDesc(1).stream()
                     .map(board -> new BoardResponse(board, currentUsername))
                     .collect(Collectors.toList());
         }
