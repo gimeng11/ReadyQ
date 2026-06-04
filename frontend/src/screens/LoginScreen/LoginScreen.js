@@ -6,7 +6,7 @@ import { styles } from './LoginStyles'
 import CustomButton from '../../components/CustomButton'
 import CustomText from '../../components/CustomText'
 import { login } from '../../api/auth'
-import { saveToken, getOnboardingSeen } from '../../utils/storage'
+import { saveToken } from '../../utils/storage'
 import { BASE_URL } from '../../api/client'
 import { useUser } from '../../context/UserContext'
 
@@ -29,9 +29,7 @@ export default function LoginScreen({ navigation }) {
         if (token) {
           await saveToken(token)
           await fetchUserInfo()
-          const seen = await getOnboardingSeen()
-          const dest = seen ? 'Home' : 'Onboarding'
-          navigation.reset({ index: 0, routes: [{ name: dest }] })
+          navigation.reset({ index: 0, routes: [{ name: 'Onboarding' }] })
         } else {
           Alert.alert('로그인 실패', 'SNS 로그인 중 오류가 발생했습니다')
         }
@@ -55,9 +53,7 @@ export default function LoginScreen({ navigation }) {
       const data = await login(username, password)
       await saveToken(data.token)
       await fetchUserInfo()
-      const seen = await getOnboardingSeen()
-      const dest = seen ? 'Home' : 'Onboarding'
-      navigation.reset({ index: 0, routes: [{ name: dest }] })
+      navigation.reset({ index: 0, routes: [{ name: 'Onboarding' }] })
     } catch (e) {
       Alert.alert('로그인 실패', e.message)
     } finally {

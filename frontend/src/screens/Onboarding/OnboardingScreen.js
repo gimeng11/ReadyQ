@@ -240,8 +240,7 @@ export default function OnboardingScreen({ navigation }) {
         <CustomButton
           title="바로 시작하기"
           type="primary"
-          onPress={async () => {
-            await saveOnboardingSeen()
+          onPress={() => {
             navigation.reset({ index: 0, routes: [{ name: 'Home' }] })
           }}
         />
